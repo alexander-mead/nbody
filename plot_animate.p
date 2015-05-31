@@ -1,8 +1,15 @@
 reset
 
+#print - use x11 on mac, wxt on linux, set print=1 to create a gif
 if(print==-1) set term x11
-if(print==0)  set term aqua
+if(print==0)  set term wxt
 if(print==1)  set term gif animate size 500,500 delay 1 optimize; set output 'movie.gif'
+
+#L - size of plot in AU
+#f - rotation frequency of plot
+#dim - number of dimensions, either 2 or 3
+#traj - set to 1 to make particle trajectories, 0 otherwise
+#n - number of particles in plot (usually this should be the same as the number simulated)
 
 set size square
 
