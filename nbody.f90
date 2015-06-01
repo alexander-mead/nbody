@@ -156,7 +156,7 @@ PROGRAM nbody
 
         dt=dt/2.d0
 
-        IF(dt<dtmax/1.d0e16) THEN
+        IF(dt<dtmax/1.e16) THEN
            WRITE(*,*) 'Error - collision detected exiting'
            WRITE(*,*) 'Collision at time:', t/(2.*pi)
            WRITE(*,*) 'Finishing time:', tf/(2.*pi)
