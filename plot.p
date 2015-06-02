@@ -1,9 +1,9 @@
 reset
 
 #I use aqua-term on mac and wxt on linux machine. set print=1 to make a postscript file
-if(print==-1) set term aqua
-if(print==0)  set term wxt
-if(print==1)  set term post enh col sol; set output 'orbit.eps'
+if(print==-1) {set term aqua}
+if(print==0)  {set term wxt}
+if(print==1)  {set term post enh col sol; set output 'orbit.eps'}
 
 #L - size of plot in x, y, z in AU
 #f - set frequency of rotation for plot. Set to f=0 for plot in inertial frame.
