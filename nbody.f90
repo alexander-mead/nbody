@@ -2,12 +2,12 @@ PROGRAM nbody
 
   IMPLICIT NONE
   REAL*16, ALLOCATABLE :: xi(:,:), vi(:,:), m(:), x(:,:), v(:,:), xnew(:,:), vnew(:,:), xres(:,:,:), tres(:), vres(:,:,:)
-  INTEGER :: i, j, k, np, icm, n
-  INTEGER :: iE, IL
+  INTEGER*8 :: i, j, k, np, n, it!, xint(2), yint(2)
+  INTEGER*8 :: iE, IL, icm
   REAL*16 :: tf, dt, for(3), e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
   REAL*16 :: L(3), Lnew(3), Lmod, Lmodnew, Lratio, dL, acc
-  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, soft=0.d0, ti=0.d0!, acc=1.e-6
-  CHARACTER(len=64) :: infile, time, boost, accuracy
+  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, soft=0.d0, ti=0.d0
+  CHARACTER(len=256) :: infile, time, boost, accuracy, directory
   LOGICAL :: mr_logic
 
   CALL get_command_argument(1,infile)
@@ -25,6 +25,9 @@ PROGRAM nbody
   CALL get_command_argument(4,accuracy)
   IF(accuracy=='') STOP 'You need to specify an accuracy parameter (e.g. 1e-6)'
   READ(accuracy,*) acc
+
+  CALL get_command_argument(5,directory)
+  IF(directory=='') STOP 'You need to specify an output directory (e.g. ''data'')'
 
   INQUIRE(file=infile,exist=mr_logic)
   IF(mr_logic .EQV. .FALSE.) STOP 'Input file does not exist'
@@ -59,9 +62,10 @@ PROGRAM nbody
   WRITE(*,*) 'Length units in AU'
   WRITE(*,*) 'Velocity in 2*pi*AU/year'
   WRITE(*,*) 'Time of simulation [years]', tf
+  WRITE(*,*)
+
   !Convert to internal time units (Done so that G=1 in the code, rather than 4*pi^2)
   tf=tf*2.d0*pi
-  WRITE(*,*)
 
   ALLOCATE(x(3,np),xnew(3,np),v(3,np),vnew(3,np),xres(3,np,n),vres(3,np,n),tres(n))
 
@@ -71,6 +75,7 @@ PROGRAM nbody
   vnew=0.d0
   t=ti
 
+  !Write the ICs to be the first line in the results file
   DO k=1,3
      DO i=1,np
         x(k,i)=xi(k,i)
@@ -88,13 +93,21 @@ PROGRAM nbody
   Lmod=length(L)
   
   !Don't do AM conservation if |L|=0.
-  IF(Lmod<=.0000001d0) iL=0
+  IF(Lmod<=1.e-8) iL=0
 
   !Set the physical time-step length based on the desired number (n) outputs
+  !Actually there will be n-1 further outputs because n=1 is taken up with ICs
   dt=(tf-ti)/float(n-1)
 
   !Maximum timestep is then set
   dtmax=dt
+
+  !Time stepping integer; dt=dtmax/(2**it)
+  it=0
+!  xint(1)=0
+!  xint(2)=1
+!  yint(1)=1
+!  yint(2)=1
 
   WRITE(*,*) 'Starting intergation'
   IF(iE==1) WRITE(*,*) 'Integrating while checking energy conservation'
@@ -102,7 +115,7 @@ PROGRAM nbody
   WRITE(*,*) 'Accuracy parameter:', acc !User set and is the degree to which AM and energy conservation occur
   WRITE(*,*)
 
-  i=1
+  i=1 !Must be set i=1 here to make calculation work properly
   DO
 
      !Calculate energy and AM at the beginning of the step
@@ -132,19 +145,36 @@ PROGRAM nbody
         !In this case update the positions and move on to the next step
         x=xnew
         v=vnew
-        t=t+dt !NB. I think errors accrew in the time calculation (big sum) this was so that tf won't be exactly what you specify
+        !t=t+dt !NB. I think errors accrew in the time calculation (big sum) this was so that tf won't be exactly what you specify
+        !Although this might not be the case because each timestep is a power of two thing 1/2**N
+        t=t+dt
+
+        !This is only approximately accurate for output time, but is easiest
+        !As set there is no guarenee that the output time will be an integer multiple of dtmax because this exact value
+        !can be missed. I can't think of an easy way to fix this at the moment.
+        !Still, the *value* of time should be accurate
         IF(t>=dtmax*float(i)) THEN
+
+           !Using these integer routines should be 100% accurate for output time
+           !but seems to be super slow, must be all the integer operations
+           !Actually this will still miss doing integer multiples of 'dt_{max}' (e.g. 5/8+1/2)
+           !yint(2)=it
+           !xint=add2powfrac(xint,yint)
+           !IF(xint(2)==0) THEN
+           !xint(1)=0
+           !xint(2)=1
+           
            !Tells the user how long has elapsed in terms of time
-           IF(float(i)>float(n)/10. .AND. float(i)<float(n)/10.+1.) WRITE(*,*) '10% Complete'
-           IF(float(i)>2.*float(n)/10. .AND. float(i)<2.*float(n)/10.+1.) WRITE(*,*) '20% Complete'
-           IF(float(i)>3.*float(n)/10. .AND. float(i)<3.*float(n)/10.+1.) WRITE(*,*) '30% Complete'
-           IF(float(i)>4.*float(n)/10. .AND. float(i)<4.*float(n)/10.+1.) WRITE(*,*) '40% Complete'
-           IF(float(i)>5.*float(n)/10. .AND. float(i)<5.*float(n)/10.+1.) WRITE(*,*) '50% Complete'
-           IF(float(i)>6.*float(n)/10. .AND. float(i)<6.*float(n)/10.+1.) WRITE(*,*) '60% Complete'
-           IF(float(i)>7.*float(n)/10. .AND. float(i)<7.*float(n)/10.+1.) WRITE(*,*) '70% Complete'
-           IF(float(i)>8.*float(n)/10. .AND. float(i)<8.*float(n)/10.+1.) WRITE(*,*) '80% Complete'
-           IF(float(i)>9.*float(n)/10. .AND. float(i)<9.*float(n)/10.+1.) WRITE(*,*) '90% Complete'
-           i=i+1
+           IF(i==CEILING(0.1*n)) WRITE(*,*) '10% Complete'
+           IF(i==CEILING(0.2*n)) WRITE(*,*) '20% Complete'
+           IF(i==CEILING(0.3*n)) WRITE(*,*) '30% Complete'
+           IF(i==CEILING(0.4*n)) WRITE(*,*) '40% Complete'
+           IF(i==CEILING(0.5*n)) WRITE(*,*) '50% Complete'
+           IF(i==CEILING(0.6*n)) WRITE(*,*) '60% Complete'
+           IF(i==CEILING(0.7*n)) WRITE(*,*) '70% Complete'
+           IF(i==CEILING(0.8*n)) WRITE(*,*) '80% Complete'
+           IF(i==CEILING(0.9*n)) WRITE(*,*) '90% Complete'
+           i=i+1 !i will be 1+1=2 on first pass so this does not overwrite IC
            xres(:,:,i)=x(:,:)
            vres(:,:,i)=v(:,:)
            tres(i)=t
@@ -153,17 +183,21 @@ PROGRAM nbody
               EXIT
            END IF
         END IF
-        IF(dt<dtmax/1.1d0) THEN
-           !Increase the time-step as long as it below the maximum value
-           dt=dt*2.d0
+        !        IF(dt<dtmax/1.1d0) THEN
+        IF(it .NE. 0) THEN
+           !Try an increase the time-step as long as it below the maximum value
+        !          dt=dt*2.d0
+           it=it-1
+           dt=dtmax/float(2**it)
         END IF
      ELSE
 
         !Otherwise decrease the time-step and do the calculation again
-        dt=dt/2.d0
+        it=it+1
+        dt=dtmax/float(2**it)
 
         !This is an attempt to make the code exit if the timestep becomes too small
-        IF(dt<dtmax/1.e8) THEN
+        IF(it==30) THEN
            WRITE(*,*) 'Error - collision detected exiting'
            WRITE(*,*) 'Collision at time:', t/(2.*pi)
            WRITE(*,*) 'Finishing time:', tf/(2.*pi)
@@ -228,16 +262,58 @@ PROGRAM nbody
   WRITE(*,*)
 
   !This the writes out the results, it does this only when the calculation is complete
-  CALL results(np,n,tres,xres,vres,m)
+  CALL results(np,n,tres,xres,vres,m,directory)
 
 CONTAINS
+
+!!$  PURE FUNCTION add2powfrac(x,y)
+!!$
+!!$    IMPLICIT NONE
+!!$    INTEGER*8 :: add2powfrac(2)
+!!$    INTEGER*8, INTENT(IN) :: x(2), y(2)
+!!$    INTEGER*8 :: a, b, n, m, c, q
+!!$
+!!$    !Adds two fractions together as long as the denominators
+!!$    !Are 2^n with n integer
+!!$    !e.g fraction x is x=x(1)/(2**x(2)) !TAKE CARE!
+!!$
+!!$    a=x(1)
+!!$    n=x(2)
+!!$    
+!!$    b=y(1)
+!!$    m=y(2)
+!!$    
+!!$    IF(n==m) THEN
+!!$       q=m
+!!$       c=a+b
+!!$    ELSE IF(n<m) THEN
+!!$       q=m
+!!$       c=a*2**(m-n)+b
+!!$    ELSE IF(n>m) THEN
+!!$       q=n
+!!$       c=a+b*(2**(n-m))
+!!$    END IF
+!!$
+!!$    DO
+!!$       IF(mod(c,2)==0) THEN
+!!$          c=c/2
+!!$          q=q-1
+!!$       ELSE
+!!$          EXIT
+!!$       END IF
+!!$    END DO
+!!$
+!!$    add2powfrac(1)=c
+!!$    add2powfrac(2)=q
+!!$    
+!!$  END FUNCTION
 
   FUNCTION am(m,x,v)
 
     IMPLICIT NONE
     REAL*16 :: am(3)
     REAL*16, INTENT(IN) :: m(:), x(:,:), v(:,:)
-    INTEGER :: i, n
+    INTEGER*8 :: i, n
 
     !This calculates the total angular momentum of the particles L=sum r x p
 
@@ -255,9 +331,9 @@ CONTAINS
 
     IMPLICIT NONE
     REAL*16, INTENT(IN) :: x(:,:)
-    INTEGER :: n
+    INTEGER*8 :: n
     REAL*16, INTENT(OUT) :: dij(:,:,:)
-    INTEGER :: i, j, k
+    INTEGER*8 :: i, j, k
     REAL*16 :: d3
 
     !This is the force matrix calculation does the i .ne. j forces and reflects along the diagonal
@@ -265,8 +341,10 @@ CONTAINS
 
     dij=0.d0
 
-    DO i=1,n
-       DO j=1,i-1
+!    DO i=1,n
+    !       DO j=1,i-1
+    DO j=1,n
+       DO i=1,j-1
           d3=(dist(x(:,i),x(:,j))+soft)**3.d0
           DO k=1,3
              dij(k,i,j)=-(x(k,i)-x(k,j))/d3
@@ -281,14 +359,15 @@ CONTAINS
 
     REAL*16, INTENT(IN) :: xin(:,:), vin(:,:), dt
     REAL*16, INTENT(OUT) :: xout(:,:), vout(:,:)
-    INTEGER, INTENT(IN) :: n
+    INTEGER*8, INTENT(IN) :: n
     REAL*16, ALLOCATABLE :: kx1(:,:), kx2(:,:), kx3(:,:), kx4(:,:), kv1(:,:), kv2(:,:), kv3(:,:), kv4(:,:), disp(:,:,:)
     REAL*16 :: accl
-    INTEGER :: i, j, k
+    INTEGER*8 :: i, j, k
 
     !This is a generic routine to carry out the RK4 algorithm between points t and t+dt
 
-    ALLOCATE(kx1(3,n),kx2(3,n),kx3(3,n),kx4(3,n),kv1(3,n),kv2(3,n),kv3(3,n),kv4(3,n))
+    ALLOCATE(kx1(3,n),kx2(3,n),kx3(3,n),kx4(3,n))
+    ALLOCATE(kv1(3,n),kv2(3,n),kv3(3,n),kv4(3,n))
     ALLOCATE(disp(3,n,n))
 
     kv1=0.d0
@@ -410,30 +489,32 @@ CONTAINS
 
   END FUNCTION cross_product
 
-  SUBROUTINE results(np,n,t,x,v,m)
+  SUBROUTINE results(np,n,t,x,v,m,dir)
 
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: n, np
+    INTEGER*8, INTENT(IN) :: n, np
     REAL*16, ALLOCATABLE :: t(:), x(:,:,:), v(:,:,:), m(:)
     CHARACTER(len=1) :: file_num1, part_num1
     CHARACTER(len=2) :: file_num2, part_num2
     CHARACTER(len=3) :: file_num3, part_num3
     CHARACTER(len=4) :: file_num4, part_num4
-    CHARACTER(len=64) :: fname, stem, ext
-    INTEGER :: tail, i, j, k
+    CHARACTER(len=256) :: fname, stem, ext, dir
+    INTEGER*8 :: tail, i, j, k
 
     !Writes out the results
 
     !Convert from internal to external time units
     t=t/(2.d0*pi)
-
-    stem='./data/particle'
+  
+    stem=TRIM(dir)//'/particle'
     ext='.dat'
 
     !Writes out the n positions and velocities
+    WRITE(*,*) 'Writing output:'
     DO j=1,np
        fname=number_file(stem,j,ext)
        OPEN(7,file=fname)
+       WRITE(*,fmt='(A64)') fname
        DO i=1,n
           WRITE(7,fmt='(7F20.10)') t(i), x(1,j,i), x(2,j,i), x(3,j,i), v(1,j,i), v(2,j,i), v(3,j,i)
        END DO
@@ -441,23 +522,26 @@ CONTAINS
     END DO
 
     !Writes out the final positions and velocities in the format of an input file in case the calculation needs to be resumed
-    OPEN(7,file='end.dat')
+    fname=TRIM(dir)//'/end.dat'
+    WRITE(*,fmt='(A64)') fname
+    OPEN(7,file=fname)
     DO i=1,np
        WRITE(7,fmt='(7F15.7)') m(i), x(1,i,n), x(2,i,n), x(3,i,n), v(1,i,n), v(2,i,n), v(3,i,n)
     END DO
     CLOSE(7)
+    WRITE(*,*)
 
   END SUBROUTINE results
 
-   FUNCTION number_file(fbase,i,fext)
+  FUNCTION number_file(fbase,i,fext)
 
     IMPLICIT NONE
-    CHARACTER(len=64) number_file, fbase, fext
+    CHARACTER(len=256) number_file, fbase, fext
     CHARACTER(len=4) num4
     CHARACTER(len=3) num3
     CHARACTER(len=2) num2
     CHARACTER(len=1) num1
-    INTEGER :: i
+    INTEGER*8 :: i
 
     !A general routine for producing files with a numbered extension
 
@@ -480,9 +564,9 @@ CONTAINS
   SUBROUTINE read_input(m,x,v,n,file_name)
 
     REAL*16, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
-    CHARACTER(len=64), INTENT(IN) :: file_name
-    INTEGER, INTENT(OUT) :: n
-    INTEGER :: inc
+    CHARACTER(len=256), INTENT(IN) :: file_name
+    INTEGER*8, INTENT(OUT) :: n
+    INTEGER*8 :: inc
 
     !Reads the input file
 
@@ -510,7 +594,7 @@ CONTAINS
     IMPLICIT NONE
     REAL*16, INTENT(IN) :: m(:), x(:,:)
     REAL*16 :: cm(3)
-    INTEGER :: i, j, n
+    INTEGER*8 :: i, j, n
 
     !Calculate the CM vector from all particles
     
@@ -529,7 +613,7 @@ CONTAINS
   FUNCTION energy(m,x,v)
 
     IMPLICIT NONE
-    INTEGER :: n, i, j, k
+    INTEGER*8 :: n, i, j, k
     REAL*16 :: kin, pot, energy
     REAL*16 :: m(:), x(:,:), v(:,:)
 
@@ -561,7 +645,7 @@ CONTAINS
 
     IMPLICIT NONE
     REAL*16 :: dist, x1(3), x2(3)
-    INTEGER :: i
+    INTEGER*8 :: i
 
     !Compute the distance between two vectors
 
@@ -578,9 +662,8 @@ CONTAINS
   FUNCTION file_length(file_name)
 
     IMPLICIT NONE
-    CHARACTER(len=64) :: file_name
-    INTEGER ::n, file_length
-!    REAL :: data
+    CHARACTER(len=256) :: file_name
+    INTEGER*8 ::n, file_length
 
     !Figures out the length of a file
 
@@ -589,7 +672,7 @@ CONTAINS
     n=0
     DO
        n=n+1
-       READ(7,*, end=301)! data
+       READ(7,*, end=301)
     END DO
 
 301 CLOSE(7)
