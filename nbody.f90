@@ -3,13 +3,13 @@ PROGRAM nbody
   IMPLICIT NONE
   REAL*16, ALLOCATABLE :: xi(:,:), vi(:,:), m(:), x(:,:), v(:,:), xnew(:,:), vnew(:,:), xres(:,:,:), tres(:), vres(:,:,:)
   INTEGER*8 :: i, j, k, np, n, it!, xint(2), yint(2)
-  INTEGER*8 :: iE, IL, icm, idim
+  INTEGER*8 :: icm, idim
   INTEGER*8, PARAMETER :: iforce=1 !Change the V(r) function
-  REAL*16 :: tf, dt, for(3), e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
+  REAL*16 :: tf, dt, e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
   REAL*16 :: L(3), Lnew(3), Lmod, Lmodnew, Lratio, dL, acc
-  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, ti=0.d0!, soft=0.d0,
+  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, ti=0.d0!, soft=0d0
   CHARACTER(len=256) :: infile, time, boost, accuracy, directory, dimens
-  LOGICAL :: mr_logic
+  LOGICAL :: mr_logic, iE, iL
 
   CALL get_command_argument(1,infile)
   IF(infile=='') STOP 'You need to specify an input file'
@@ -97,8 +97,8 @@ PROGRAM nbody
   END DO
 
   !Assume checking AM and energy conservation
-  iL=1
-  iE=1
+  iL=.TRUE.
+  iE=.TRUE.
 
   L=am(m,x,v)
   Lmod=length(L)
@@ -109,8 +109,8 @@ PROGRAM nbody
   WRITE(*,*)
   
   !Don't do AM conservation if |L|=0. or energy conservation if this is zero
-  IF(ABS(e)<=1.e-12) iE=0
-  IF(Lmod<=1.e-12) iL=0
+  IF(ABS(e)<=1d-12) iE=.FALSE.
+  IF(Lmod<=1d-12) iL=.FALSE.
 
   !Set the physical time-step length based on the desired number (n) outputs
   !Actually there will be n-1 further outputs because n=1 is taken up with ICs
@@ -127,8 +127,8 @@ PROGRAM nbody
 !  yint(2)=1
 
   WRITE(*,*) 'Starting intergation'
-  IF(iE==1) WRITE(*,*) 'Integrating while checking energy conservation'
-  IF(iL==1) WRITE(*,*) 'Integrating while checking angular momentum conservation'
+  IF(iE) WRITE(*,*) 'Integrating while checking energy conservation'
+  IF(iL) WRITE(*,*) 'Integrating while checking angular momentum conservation'
   WRITE(*,*) 'Accuracy parameter:', acc !User set and is the degree to which AM and energy conservation occur
   WRITE(*,*)
 
@@ -136,8 +136,10 @@ PROGRAM nbody
   DO
 
      !Calculate energy and AM at the beginning of the step
-     IF(iE==1) e=energy(m,x,v)
-     IF(iL==1) THEN
+     IF(iE) THEN
+        e=energy(m,x,v)
+     END IF
+     IF(iL) THEN
         L=am(m,x,v)
         Lmod=length(L)
      END IF
@@ -146,19 +148,27 @@ PROGRAM nbody
      CALL rk4(np,x(:,:),xnew(:,:),v(:,:),vnew(:,:),dt)
 
      !Calculate energy and AM at the end of the step
-     IF(iE==1) enew=energy(m,xnew,vnew)
-     IF(iL==1) THEN
+     IF(iE) THEN
+        enew=energy(m,xnew,vnew)
+     END IF
+     IF(iL) THEN
         Lnew=am(m,x,v)
         Lmodnew=length(Lnew)
      END IF
 
-     !Calculate ratio of before and after AM and energy
-     IF(iE==1) eratio=ABS(-1.d0+enew/e)
-     IF(iE==1) de=acc*dt/tf
-     IF(iL==1) Lratio=ABS(-1.d0+Lmodnew/Lmod)
-     IF(iL==1) dL=acc*dt/tf
+     !Calculate ratio of before and after energy
+     IF(iE) THEN
+        eratio=ABS(-1.d0+enew/e)
+        de=acc*dt/tf
+     END IF
 
-     IF((iE==0 .OR. eratio<de) .AND. (iL==0 .OR. Lratio<dL)) THEN
+     !Calculate ratio of before and after angular momentum
+     IF(iL) THEN
+        Lratio=ABS(-1.d0+Lmodnew/Lmod)
+        dL=acc*dt/tf
+     END IF
+
+     IF(((iE .EQV. .FALSE.) .OR. (eratio<de)) .AND. ((iL .EQV. .FALSE.) .OR. (Lratio<dL))) THEN
         !In this case update the positions and move on to the next step
         x=xnew
         v=vnew
@@ -182,15 +192,15 @@ PROGRAM nbody
            !xint(2)=1
            
            !Tells the user how long has elapsed in terms of time
-           IF(i==CEILING(0.1*n)) WRITE(*,*) '10% Complete'
-           IF(i==CEILING(0.2*n)) WRITE(*,*) '20% Complete'
-           IF(i==CEILING(0.3*n)) WRITE(*,*) '30% Complete'
-           IF(i==CEILING(0.4*n)) WRITE(*,*) '40% Complete'
-           IF(i==CEILING(0.5*n)) WRITE(*,*) '50% Complete'
-           IF(i==CEILING(0.6*n)) WRITE(*,*) '60% Complete'
-           IF(i==CEILING(0.7*n)) WRITE(*,*) '70% Complete'
-           IF(i==CEILING(0.8*n)) WRITE(*,*) '80% Complete'
-           IF(i==CEILING(0.9*n)) WRITE(*,*) '90% Complete'
+           IF(i==CEILING(0.1*DBLE(n))) WRITE(*,*) '10% Complete'
+           IF(i==CEILING(0.2*DBLE(n))) WRITE(*,*) '20% Complete'
+           IF(i==CEILING(0.3*DBLE(n))) WRITE(*,*) '30% Complete'
+           IF(i==CEILING(0.4*DBLE(n))) WRITE(*,*) '40% Complete'
+           IF(i==CEILING(0.5*DBLE(n))) WRITE(*,*) '50% Complete'
+           IF(i==CEILING(0.6*DBLE(n))) WRITE(*,*) '60% Complete'
+           IF(i==CEILING(0.7*DBLE(n))) WRITE(*,*) '70% Complete'
+           IF(i==CEILING(0.8*DBLE(n))) WRITE(*,*) '80% Complete'
+           IF(i==CEILING(0.9*DBLE(n))) WRITE(*,*) '90% Complete'
            i=i+1 !i will be 1+1=2 on first pass so this does not overwrite IC
            xres(:,:,i)=x(:,:)
            vres(:,:,i)=v(:,:)
@@ -520,17 +530,17 @@ CONTAINS
 
   END FUNCTION length
 
-  FUNCTION dot_product(x,y)
-
-    IMPLICIT NONE
-    REAL*16 :: dot_product
-    REAL*16, INTENT(IN) :: x(3), y(3)
-
-    !Calculates the dot product of two vectors
-
-    dot_product=x(1)*y(1)+x(2)*y(2)+x(3)*y(3)
-
-  END FUNCTION dot_product
+!!$  FUNCTION dot_product(x,y)
+!!$
+!!$    IMPLICIT NONE
+!!$    REAL*16 :: dot_product
+!!$    REAL*16, INTENT(IN) :: x(3), y(3)
+!!$
+!!$    !Calculates the dot product of two vectors
+!!$
+!!$    dot_product=x(1)*y(1)+x(2)*y(2)+x(3)*y(3)
+!!$
+!!$  END FUNCTION dot_product
 
   FUNCTION cross_product(x,y)
 
@@ -551,12 +561,12 @@ CONTAINS
     IMPLICIT NONE
     INTEGER*8, INTENT(IN) :: n, np
     REAL*16, ALLOCATABLE :: t(:), x(:,:,:), v(:,:,:), m(:)
-    CHARACTER(len=1) :: file_num1, part_num1
-    CHARACTER(len=2) :: file_num2, part_num2
-    CHARACTER(len=3) :: file_num3, part_num3
-    CHARACTER(len=4) :: file_num4, part_num4
+!    CHARACTER(len=1) :: file_num1, part_num1
+!    CHARACTER(len=2) :: file_num2, part_num2
+!    CHARACTER(len=3) :: file_num3, part_num3
+!    CHARACTER(len=4) :: file_num4, part_num4
     CHARACTER(len=256) :: fname, stem, ext, dir
-    INTEGER*8 :: tail, i, j, k
+    INTEGER*8 :: i, j
 
     !Writes out the results
 
@@ -624,7 +634,6 @@ CONTAINS
     REAL*16, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
     CHARACTER(len=256), INTENT(IN) :: file_name
     INTEGER*8, INTENT(OUT) :: n
-    INTEGER*8 :: inc
 
     !Reads the input file
 
@@ -679,7 +688,7 @@ CONTAINS
   FUNCTION energy(m,x,v)
 
     IMPLICIT NONE
-    INTEGER*8 :: n, i, j, k
+    INTEGER*8 :: n, i, j
     REAL*16 :: kin, pot, energy, d
     REAL*16, INTENT(IN) :: m(:), x(:,:), v(:,:)
 
@@ -700,7 +709,6 @@ CONTAINS
     !Calculate potential energy
     DO i=1,n
        DO j=1,i-1
-          !          pot=pot-G*m(i)*m(j)/dist_3D(x(:,i),x(:,j))
           IF(idim==2) THEN
              d=dist_2D(x(:,i),x(:,j))
           ELSE IF(idim==3) THEN
