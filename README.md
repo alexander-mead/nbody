@@ -18,4 +18,4 @@ It should then be run specifying (a) the input file (b) the simulation time leng
 
 When the code runs it gives a rough % of completion. The output are files particle_1.dat, particle_2.dat, ... , particle_n.dat which are creatred in the specified output folder. The files give time, x, y, z, vx, vy, vz for every particle in the simulation at 1000 values of 't' that are linearly spaced.
 
-These data can then be visualised using the plotting scripts 'plot.p' or 'plot_animate.p', which do either a static or animated plot. These are gnuplot scripts that run by entering gnuplot (type gnuplot) and then doing 'gnuplot> load 'plot.p''. The plots require some things to be speicied which are listed in each plotting file (things like number of particles, dimension for the plot).
+These data can then be visualised using the plotting script 'plot_animate.p', which can do either a static or animated plot. This script can be run by entering gnuplot (type gnuplot) and then doing 'gnuplot> load 'plot_animate.p''. The script requires some things to be speicied which are listed in each plotting file (things like number of particles, dimension for the plot).
