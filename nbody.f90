@@ -3,11 +3,12 @@ PROGRAM nbody
   IMPLICIT NONE
   REAL*16, ALLOCATABLE :: xi(:,:), vi(:,:), m(:), x(:,:), v(:,:), xnew(:,:), vnew(:,:), xres(:,:,:), tres(:), vres(:,:,:)
   INTEGER*8 :: i, j, k, np, n, it!, xint(2), yint(2)
-  INTEGER*8 :: iE, IL, icm
+  INTEGER*8 :: iE, IL, icm, idim
+  INTEGER*8, PARAMETER :: iforce=1 !Change the V(r) function
   REAL*16 :: tf, dt, for(3), e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
   REAL*16 :: L(3), Lnew(3), Lmod, Lmodnew, Lratio, dL, acc
-  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, soft=0.d0, ti=0.d0
-  CHARACTER(len=256) :: infile, time, boost, accuracy, directory
+  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, ti=0.d0!, soft=0.d0,
+  CHARACTER(len=256) :: infile, time, boost, accuracy, directory, dimens
   LOGICAL :: mr_logic
 
   CALL get_command_argument(1,infile)
@@ -17,16 +18,21 @@ PROGRAM nbody
   IF(time=='') STOP 'You need to specify a simulation time length (yrs)'
   READ(time,*) tf
 
-  CALL get_command_argument(3,boost)
+  CALL get_command_argument(3,dimens)
+  IF(dimens=='') STOP 'You need to specify the number of dimensions (2 or 3)'
+  READ(dimens,*) idim
+  IF((idim .NE. 2) .AND. (idim .NE. 3)) STOP 'You need to specify the number of dimensions (2 or 3)'
+
+  CALL get_command_argument(4,boost)
   IF(boost=='') STOP 'You need to specify CM boost (1) or not (0)'
   READ(boost,*) icm
   IF((icm .NE. 1) .AND. (icm .NE. 0)) STOP 'You need to specify CM boost (1) or not (0)'
 
-  CALL get_command_argument(4,accuracy)
+  CALL get_command_argument(5,accuracy)
   IF(accuracy=='') STOP 'You need to specify an accuracy parameter (e.g. 1e-6)'
   READ(accuracy,*) acc
 
-  CALL get_command_argument(5,directory)
+  CALL get_command_argument(6,directory)
   IF(directory=='') STOP 'You need to specify an output directory (e.g. ''data'')'
 
   INQUIRE(file=infile,exist=mr_logic)
@@ -43,20 +49,25 @@ PROGRAM nbody
   !Reads in the initial mass, position and velocity of each particle to be simulated
   CALL read_input(m,xi,vi,np,infile)
 
+  !I included this because I thought that 2D simulations would be much quicker than 3D
+  !This seems not to be the case though, and the speed-up is very, very marginal
+  !I'm not quite sure why though...
+  WRITE(*,*) 'Number of dimensions:', idim
+  WRITE(*,*)
+
   IF(icm==1) THEN
      WRITE(*,*) 'Boosting to CM position'
      xcm=cm(np,m,xi)
      vcm=cm(np,m,vi)
      DO i=1,np
-        DO j=1,3
+        DO j=1,idim
            xi(j,i)=xi(j,i)-xcm(j)
            vi(j,i)=vi(j,i)-vcm(j)
         END DO
      END DO
+     WRITE(*,*) 'CM move complete'
+     WRITE(*,*)
   END IF
-
-  WRITE(*,*) 'CM move complete'
-  WRITE(*,*)
 
   WRITE(*,*) 'Mass in solar masses'
   WRITE(*,*) 'Length units in AU'
@@ -91,9 +102,15 @@ PROGRAM nbody
 
   L=am(m,x,v)
   Lmod=length(L)
+  e=energy(m,xi,vi)
+
+  WRITE(*,*) 'Initial energy:', e
+  WRITE(*,*) 'Initial angular momentum:', Lmod
+  WRITE(*,*)
   
-  !Don't do AM conservation if |L|=0.
-  IF(Lmod<=1.e-8) iL=0
+  !Don't do AM conservation if |L|=0. or energy conservation if this is zero
+  IF(ABS(e)<=1.e-12) iE=0
+  IF(Lmod<=1.e-12) iL=0
 
   !Set the physical time-step length based on the desired number (n) outputs
   !Actually there will be n-1 further outputs because n=1 is taken up with ICs
@@ -115,7 +132,7 @@ PROGRAM nbody
   WRITE(*,*) 'Accuracy parameter:', acc !User set and is the degree to which AM and energy conservation occur
   WRITE(*,*)
 
-  i=1 !Must be set i=1 here to make calculation work properly
+  i=1 !Must set i=1 here to make calculation work properly
   DO
 
      !Calculate energy and AM at the beginning of the step
@@ -190,6 +207,7 @@ PROGRAM nbody
            it=it-1
            dt=dtmax/float(2**it)
         END IF
+        
      ELSE
 
         !Otherwise decrease the time-step and do the calculation again
@@ -197,6 +215,7 @@ PROGRAM nbody
         dt=dtmax/float(2**it)
 
         !This is an attempt to make the code exit if the timestep becomes too small
+        !I've not really checked to see what an 'optimum' value is here
         IF(it==30) THEN
            WRITE(*,*) 'Error - collision detected exiting'
            WRITE(*,*) 'Collision at time:', t/(2.*pi)
@@ -256,10 +275,12 @@ PROGRAM nbody
      WRITE(*,*)
   END IF
 
-  WRITE(*,*) 'Initial energy:', e_init
-  WRITE(*,*) 'Final energy:', e_final
-  WRITE(*,*) 'Ratio:', e_final/e_init
-  WRITE(*,*)
+  IF(e_init .NE. 0.d0) THEN
+     WRITE(*,*) 'Initial energy:', e_init
+     WRITE(*,*) 'Final energy:', e_final
+     WRITE(*,*) 'Ratio:', e_final/e_init
+     WRITE(*,*)
+  END IF
 
   !This the writes out the results, it does this only when the calculation is complete
   CALL results(np,n,tres,xres,vres,m,directory)
@@ -315,7 +336,7 @@ CONTAINS
     REAL*16, INTENT(IN) :: m(:), x(:,:), v(:,:)
     INTEGER*8 :: i, n
 
-    !This calculates the total angular momentum of the particles L=sum r x p
+    !This calculates the total angular momentum (about the origin) of the particles L=sum r x p
 
     am=0.d0
 
@@ -327,49 +348,69 @@ CONTAINS
 
   END FUNCTION am
 
-  SUBROUTINE matrix(n,x,dij)
+  SUBROUTINE force_matrix(n,x,m,F)
 
     IMPLICIT NONE
-    REAL*16, INTENT(IN) :: x(:,:)
+    REAL*16, INTENT(IN) :: x(:,:), m(:)
     INTEGER*8 :: n
-    REAL*16, INTENT(OUT) :: dij(:,:,:)
+    REAL*16, INTENT(OUT) :: F(:,:,:)
     INTEGER*8 :: i, j, k
-    REAL*16 :: d3
+    REAL*16 :: d
 
-    !This is the force matrix calculation does the i .ne. j forces and reflects along the diagonal
-    !Assumption is that G=1 which makes the internal time units differ from the output units by 4*pi^2
+    !This is the force matrix calculation does the i .NE. j forces and reflects along the diagonal
 
-    dij=0.d0
+    !The diagonal is never investigated so will remain zero (anti-symmetry, no self force)
+    F=0.d0
 
-!    DO i=1,n
-    !       DO j=1,i-1
     DO j=1,n
        DO i=1,j-1
-          d3=(dist(x(:,i),x(:,j))+soft)**3.d0
-          DO k=1,3
-             dij(k,i,j)=-(x(k,i)-x(k,j))/d3
-             dij(k,j,i)=-dij(k,i,j)
+
+          !Calculate the particle-particle distances depending on the number of dimensions
+          IF(idim==3) THEN
+             d=dist_3D(x(:,i),x(:,j))
+          ELSE IF(idim==2) THEN
+             d=dist_2D(x(:,i),x(:,j))
+          END IF
+
+          !Compute all elements of the force matrix, anti-symmetry is enforced
+          !radial vector comes in at the end
+          DO k=1,idim
+             F(k,i,j)=G*m(i)*m(j)*force(d)*(x(k,i)-x(k,j))/d
+             F(k,j,i)=-F(k,i,j)
           END DO
+          
        END DO
     END DO
 
-  END SUBROUTINE matrix
+  END SUBROUTINE force_matrix
 
   SUBROUTINE rk4(n,xin,xout,vin,vout,dt)
 
+    IMPLICIT NONE
     REAL*16, INTENT(IN) :: xin(:,:), vin(:,:), dt
     REAL*16, INTENT(OUT) :: xout(:,:), vout(:,:)
     INTEGER*8, INTENT(IN) :: n
-    REAL*16, ALLOCATABLE :: kx1(:,:), kx2(:,:), kx3(:,:), kx4(:,:), kv1(:,:), kv2(:,:), kv3(:,:), kv4(:,:), disp(:,:,:)
+    REAL*16, ALLOCATABLE :: x(:,:), v(:,:), F(:,:,:)!, disp(:,:,:)
+    REAL*16, ALLOCATABLE :: kx1(:,:), kx2(:,:), kx3(:,:), kx4(:,:)
+    REAL*16, ALLOCATABLE :: kv1(:,:), kv2(:,:), kv3(:,:), kv4(:,:)
     REAL*16 :: accl
     INTEGER*8 :: i, j, k
 
-    !This is a generic routine to carry out the RK4 algorithm between points t and t+dt
+    !This is a generic routine to carry out the RK4 algorithm between points t and t+dt'
+    !for n bodies experiencing forces between each other
 
-    ALLOCATE(kx1(3,n),kx2(3,n),kx3(3,n),kx4(3,n))
-    ALLOCATE(kv1(3,n),kv2(3,n),kv3(3,n),kv4(3,n))
-    ALLOCATE(disp(3,n,n))
+    !Allocate arrays
+    ALLOCATE(kx1(idim,n),kx2(idim,n),kx3(idim,n),kx4(idim,n))
+    ALLOCATE(kv1(idim,n),kv2(idim,n),kv3(idim,n),kv4(idim,n))
+    ALLOCATE(x(idim,n),v(idim,n),F(idim,n,n))
 
+    !This means that x, v in this subroutine can be either 2 or 3 dimensions
+    DO k=1,idim
+       DO i=1,n
+          x(k,i)=xin(k,i)
+          v(k,i)=vin(k,i)
+       END DO
+    END DO
     kv1=0.d0
     kv2=0.d0
     kv3=0.d0
@@ -382,72 +423,88 @@ CONTAINS
 
     !Step 1
     !Calculates the force matrix
-    CALL matrix(n,xin,disp)
-    DO k=1,3
+    !CALL force_matrix(n,x,disp)
+    CALL force_matrix(n,x,m,F)
+    DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                accl=m(j)*disp(k,i,j)
+                !accl=G*m(j)*disp(k,i,j)
+                accl=F(k,i,j)/m(i)
                 kv1(k,i)=kv1(k,i)+accl*dt
              END IF
           END DO
-          kx1(k,i)=vin(k,i)*dt
+          kx1(k,i)=v(k,i)*dt
        END DO
     END DO
 
     !Step 2
-    CALL matrix(n,xin+kx1/2.d0,disp)
-    DO k=1,3
+    CALL force_matrix(n,x+kx1/2.d0,m,F)
+    DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                accl=m(j)*disp(k,i,j)
+                !accl=G*m(j)*disp(k,i,j)
+                accl=F(k,i,j)/m(i)
                 kv2(k,i)=kv2(k,i)+accl*dt
              END IF
           END DO
-          kx2(k,i)=(vin(k,i)+kv1(k,i)/2.d0)*dt
+          kx2(k,i)=(v(k,i)+kv1(k,i)/2.d0)*dt
        END DO
     END DO
 
     !Step 3
-    CALL matrix(n,xin+kx2/2.d0,disp)
-    DO k=1,3
+    CALL force_matrix(n,x+kx2/2.d0,m,F)
+    DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                accl=m(j)*disp(k,i,j)
+                !accl=G*m(j)*disp(k,i,j)
+                accl=F(k,i,j)/m(i)
                 kv3(k,i)=kv3(k,i)+accl*dt
              END IF
           END DO
-          kx3(k,i)=(vin(k,i)+kv2(k,i)/2.d0)*dt
+          kx3(k,i)=(v(k,i)+kv2(k,i)/2.d0)*dt
        END DO
     END DO
 
     !Step 4
-    CALL matrix(n,xin+kx3,disp)
-    DO k=1,3
+    CALL force_matrix(n,x+kx3,m,F)
+    DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                accl=m(j)*disp(k,i,j)
+                !accl=G*m(j)*disp(k,i,j)
+                accl=F(k,i,j)/m(i)
                 kv4(k,i)=kv4(k,i)+accl*dt
              END IF
           END DO
-          kx4(k,i)=(vin(k,i)+kv3(k,i))*dt
+          kx4(k,i)=(v(k,i)+kv3(k,i))*dt
        END DO
     END DO
 
-    DEALLOCATE(disp)
+    DEALLOCATE(x,v,F)
 
     !Now compute the RK4 result using the standard weighting
-    DO k=1,3
+    
+    !Only run over the number of dimensions
+    DO k=1,idim
        DO i=1,n
           xout(k,i)=xin(k,i)+(kx1(k,i)+(2.d0*kx2(k,i))+(2.d0*kx3(k,i))+kx4(k,i))/6.d0
           vout(k,i)=vin(k,i)+(kv1(k,i)+(2.d0*kv2(k,i))+(2.d0*kv3(k,i))+kv4(k,i))/6.d0
        END DO
     END DO
 
-    DEALLOCATE(kx1,kx2,kx3,kx4,kv1,kv2,kv3,kv4)
+    !Need to set some values for the z component in 2 dimensional case. These should be 0 from before anyway
+    IF(idim==2) THEN
+       DO i=1,n
+          xout(3,i)=xin(3,i)
+          vout(3,i)=vin(3,i)
+       END DO
+    END IF
+
+    DEALLOCATE(kx1,kx2,kx3,kx4)
+    DEALLOCATE(kv1,kv2,kv3,kv4)
 
   END SUBROUTINE rk4
 
@@ -514,7 +571,7 @@ CONTAINS
     DO j=1,np
        fname=number_file(stem,j,ext)
        OPEN(7,file=fname)
-       WRITE(*,fmt='(A64)') fname
+       WRITE(*,*) TRIM(fname)
        DO i=1,n
           WRITE(7,fmt='(7F20.10)') t(i), x(1,j,i), x(2,j,i), x(3,j,i), v(1,j,i), v(2,j,i), v(3,j,i)
        END DO
@@ -523,7 +580,7 @@ CONTAINS
 
     !Writes out the final positions and velocities in the format of an input file in case the calculation needs to be resumed
     fname=TRIM(dir)//'/end.dat'
-    WRITE(*,fmt='(A64)') fname
+    WRITE(*,*) TRIM(fname)
     OPEN(7,file=fname)
     DO i=1,np
        WRITE(7,fmt='(7F15.7)') m(i), x(1,i,n), x(2,i,n), x(3,i,n), v(1,i,n), v(2,i,n), v(3,i,n)
@@ -563,6 +620,7 @@ CONTAINS
 
   SUBROUTINE read_input(m,x,v,n,file_name)
 
+    IMPLICIT NONE
     REAL*16, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
     CHARACTER(len=256), INTENT(IN) :: file_name
     INTEGER*8, INTENT(OUT) :: n
@@ -580,7 +638,15 @@ CONTAINS
 
     OPEN(7,file=file_name)
     DO i=1,n
+       
        READ(7,*) m(i), x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i)
+
+       !If only using 2 dimensions then ensure z compoents are set to zero
+       IF(idim==2) THEN
+          x(3,i)=0.d0
+          v(3,i)=0.d0
+       END IF
+       
     END DO
     CLOSE(7)
 
@@ -614,8 +680,8 @@ CONTAINS
 
     IMPLICIT NONE
     INTEGER*8 :: n, i, j, k
-    REAL*16 :: kin, pot, energy
-    REAL*16 :: m(:), x(:,:), v(:,:)
+    REAL*16 :: kin, pot, energy, d
+    REAL*16, INTENT(IN) :: m(:), x(:,:), v(:,:)
 
     !Calculates the total energy of all particles
 
@@ -629,35 +695,113 @@ CONTAINS
        kin=kin+m(i)*((v(1,i)**2.d0)+(v(2,i)**2.d0)+(v(3,i)**2.d0))/2.d0
     END DO
 
+!    WRITE(*,*) 'kin:', kin
+
     !Calculate potential energy
     DO i=1,n
        DO j=1,i-1
-          pot=pot-G*m(i)*m(j)/(dist(x(:,i),x(:,j))+soft)
+          !          pot=pot-G*m(i)*m(j)/dist_3D(x(:,i),x(:,j))
+          IF(idim==2) THEN
+             d=dist_2D(x(:,i),x(:,j))
+          ELSE IF(idim==3) THEN
+             d=dist_3D(x(:,i),x(:,j))
+          END IF
+          pot=pot+G*m(i)*m(j)*potential(d)
        END DO
     END DO
+
+!    WRITE(*,*) 'pot', pot, d
 
     !Total is sum
     energy=kin+pot
 
   END FUNCTION energy
 
-  FUNCTION dist(x1,x2)
+  FUNCTION potential(r)
 
     IMPLICIT NONE
-    REAL*16 :: dist, x1(3), x2(3)
+    REAL*16 :: potential
+    REAL*16, INTENT(IN) :: r
+
+    !Potential energy without the G*m1*m2 pre-factor
+
+    IF(iforce==1) THEN
+       potential=-1./r
+    ELSE IF(iforce==2) THEN
+       potential=-1./r**2.
+    ELSE IF(iforce==3) THEN
+       potential=r+r**(-1.)
+    ELSE IF(iforce==4) THEN
+       potential=r**2.+r**(-2.)
+    ELSE IF(iforce==5) THEN
+       potential=r**0.5+r**(-0.5)
+    ELSE IF(iforce==6) THEN
+       potential=r**(-3.)-r**(-1.)
+    END IF
+    
+  END FUNCTION potential
+
+  FUNCTION force(r)
+
+    IMPLICIT NONE
+    REAL*16 :: force
+    REAL*16, INTENT(IN) :: r
+
+    !Force without the G*m1*m2 pre-factor
+    !Force = -Grad V(r) (NB. *MINUS* grad V)
+    !Assumes V is a function of r only
+
+    IF(iforce==1) THEN
+       force=-1./r**2.
+    ELSE IF(iforce==2) THEN
+       force=-2./r**3.
+    ELSE IF(iforce==3) THEN
+       force=-1.+r**(-2.)
+    ELSE IF(iforce==4) THEN
+       force=-2.*r+2.*r**(-3.)
+    ELSE IF(iforce==5) THEN
+       force=-0.5*r**(-0.5)+0.5*r**(-1.5)
+    ELSE IF(iforce==6) THEN
+       force=3.*r**(-4.)-r**(-2.)
+    END IF
+    
+  END FUNCTION force
+
+  FUNCTION dist_2D(x1,x2)
+
+    IMPLICIT NONE
+    REAL*16 :: dist_2D, x1(2), x2(2)
     INTEGER*8 :: i
 
-    !Compute the distance between two vectors
+    !Compute the distance between two 2D vectors
 
-    dist=0.d0
+    dist_2D=0.d0
 
-    DO i=1,3
-       dist=dist+((x1(i)-x2(i))**2.d0)
+    DO i=1,2
+       dist_2D=dist_2D+((x1(i)-x2(i))**2.d0)
     END DO
 
-    dist=sqrt(dist)
+    dist_2D=sqrt(dist_2D)
 
-  END FUNCTION dist
+  END FUNCTION dist_2D
+  
+  FUNCTION dist_3D(x1,x2)
+
+    IMPLICIT NONE
+    REAL*16 :: dist_3D, x1(3), x2(3)
+    INTEGER*8 :: i
+
+    !Compute the distance between two 3D vectors
+
+    dist_3D=0.d0
+
+    DO i=1,3
+       dist_3D=dist_3D+((x1(i)-x2(i))**2.d0)
+    END DO
+
+    dist_3D=sqrt(dist_3D)
+
+  END FUNCTION dist_3D
 
   FUNCTION file_length(file_name)
 
@@ -667,7 +811,7 @@ CONTAINS
 
     !Figures out the length of a file
 
-    WRITE(*,*) 'File length of:', file_name
+    WRITE(*,*) 'File length of: ', TRIM(file_name)
     OPEN(7,file=file_name)
     n=0
     DO
