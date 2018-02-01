@@ -70,7 +70,7 @@ if(animate==1) {nmin=1}
 do for [a=nmin:nmax-1] {
 
 #Do the trajectories
-ntraj=10
+ntraj=20
 if(animate==0){b=0}
 if(animate==1 && traj==0) {b=a}
 if(animate==1 && traj==1) {b=0}

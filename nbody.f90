@@ -2,14 +2,18 @@ PROGRAM nbody
 
   IMPLICIT NONE
   REAL*16, ALLOCATABLE :: xi(:,:), vi(:,:), m(:), x(:,:), v(:,:), xnew(:,:), vnew(:,:), xres(:,:,:), tres(:), vres(:,:,:)
-  INTEGER*8 :: i, j, k, np, n, it!, xint(2), yint(2)
-  INTEGER*8 :: icm, idim
-  INTEGER*8, PARAMETER :: iforce=1 !Change the V(r) function
+  INTEGER :: i, j, k, np, n, it!, xint(2), yint(2)
+  INTEGER :: icm, idim  
   REAL*16 :: tf, dt, e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
   REAL*16 :: L(3), Lnew(3), Lmod, Lmodnew, Lratio, dL, acc
-  REAL*16, PARAMETER :: G=1.d0, pi=3.141592654d0, ti=0.d0!, soft=0d0
   CHARACTER(len=256) :: infile, time, boost, accuracy, directory, dimens
   LOGICAL :: mr_logic, iE, iL
+  
+  INTEGER, PARAMETER :: iforce=1 !Change the potential function
+  REAL*16, PARAMETER :: G=1.d0 !Gravitational constant
+  REAL*16, PARAMETER :: pi=3.141592654d0 !pi
+  REAL*16, PARAMETER :: ti=0.d0 !Initial time (no reason to not be zero)
+  REAL*16, PARAMETER :: soft=0.0d0 !Gravitational softening [AU; need to set iforce=7]
 
   CALL get_command_argument(1,infile)
   IF(infile=='') STOP 'You need to specify an input file'
@@ -39,7 +43,7 @@ PROGRAM nbody
   IF(mr_logic .EQV. .FALSE.) STOP 'Input file does not exist'
 
   !Number of time-steps to output (linear in t)
-  n=1001 !Needs to have the '1' at the end to make the per cent calculation work
+  n=1001 !Needs to have the '1' at the end to make the per-cent calculation work
   
   WRITE(*,*)
   WRITE(*,*) 'N-body integration code'
@@ -69,10 +73,13 @@ PROGRAM nbody
      WRITE(*,*)
   END IF
 
-  WRITE(*,*) 'Mass in solar masses'
-  WRITE(*,*) 'Length units in AU'
-  WRITE(*,*) 'Velocity in 2*pi*AU/year'
-  WRITE(*,*) 'Time of simulation [years]', tf
+  WRITE(*,*) 'Mass units [Msun]'
+  WRITE(*,*) 'Length units [AU]'
+  WRITE(*,*) 'Velocity in [2*pi*AU/year]:'
+  WRITE(*,*) 'Start time of [years]:', tf-ti
+  WRITE(*,*) 'End time of [years]:', tf-ti
+  WRITE(*,*) 'Duration of simulation [years]:', tf-ti
+  WRITE(*,*) 'Gravitational softening [AU]:', soft
   WRITE(*,*)
 
   !Convert to internal time units (Done so that G=1 in the code, rather than 4*pi^2)
@@ -80,6 +87,7 @@ PROGRAM nbody
 
   ALLOCATE(x(3,np),xnew(3,np),v(3,np),vnew(3,np),xres(3,np,n),vres(3,np,n),tres(n))
 
+  !Set variables to zero
   x=0.d0
   xnew=0.d0
   v=0.d0
@@ -344,7 +352,7 @@ CONTAINS
     IMPLICIT NONE
     REAL*16 :: am(3)
     REAL*16, INTENT(IN) :: m(:), x(:,:), v(:,:)
-    INTEGER*8 :: i, n
+    INTEGER :: i, n
 
     !This calculates the total angular momentum (about the origin) of the particles L=sum r x p
 
@@ -362,9 +370,9 @@ CONTAINS
 
     IMPLICIT NONE
     REAL*16, INTENT(IN) :: x(:,:), m(:)
-    INTEGER*8 :: n
+    INTEGER :: n
     REAL*16, INTENT(OUT) :: F(:,:,:)
-    INTEGER*8 :: i, j, k
+    INTEGER :: i, j, k
     REAL*16 :: d
 
     !This is the force matrix calculation does the i .NE. j forces and reflects along the diagonal
@@ -399,12 +407,12 @@ CONTAINS
     IMPLICIT NONE
     REAL*16, INTENT(IN) :: xin(:,:), vin(:,:), dt
     REAL*16, INTENT(OUT) :: xout(:,:), vout(:,:)
-    INTEGER*8, INTENT(IN) :: n
+    INTEGER, INTENT(IN) :: n
     REAL*16, ALLOCATABLE :: x(:,:), v(:,:), F(:,:,:)!, disp(:,:,:)
     REAL*16, ALLOCATABLE :: kx1(:,:), kx2(:,:), kx3(:,:), kx4(:,:)
     REAL*16, ALLOCATABLE :: kv1(:,:), kv2(:,:), kv3(:,:), kv4(:,:)
     REAL*16 :: accl
-    INTEGER*8 :: i, j, k
+    INTEGER :: i, j, k
 
     !This is a generic routine to carry out the RK4 algorithm between points t and t+dt'
     !for n bodies experiencing forces between each other
@@ -559,14 +567,14 @@ CONTAINS
   SUBROUTINE results(np,n,t,x,v,m,dir)
 
     IMPLICIT NONE
-    INTEGER*8, INTENT(IN) :: n, np
+    INTEGER, INTENT(IN) :: n, np
     REAL*16, ALLOCATABLE :: t(:), x(:,:,:), v(:,:,:), m(:)
 !    CHARACTER(len=1) :: file_num1, part_num1
 !    CHARACTER(len=2) :: file_num2, part_num2
 !    CHARACTER(len=3) :: file_num3, part_num3
 !    CHARACTER(len=4) :: file_num4, part_num4
     CHARACTER(len=256) :: fname, stem, ext, dir
-    INTEGER*8 :: i, j
+    INTEGER :: i, j
 
     !Writes out the results
 
@@ -608,7 +616,7 @@ CONTAINS
     CHARACTER(len=3) num3
     CHARACTER(len=2) num2
     CHARACTER(len=1) num1
-    INTEGER*8 :: i
+    INTEGER :: i
 
     !A general routine for producing files with a numbered extension
 
@@ -633,7 +641,7 @@ CONTAINS
     IMPLICIT NONE
     REAL*16, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
     CHARACTER(len=256), INTENT(IN) :: file_name
-    INTEGER*8, INTENT(OUT) :: n
+    INTEGER, INTENT(OUT) :: n
 
     !Reads the input file
 
@@ -669,7 +677,7 @@ CONTAINS
     IMPLICIT NONE
     REAL*16, INTENT(IN) :: m(:), x(:,:)
     REAL*16 :: cm(3)
-    INTEGER*8 :: i, j, n
+    INTEGER :: i, j, n
 
     !Calculate the CM vector from all particles
     
@@ -688,7 +696,7 @@ CONTAINS
   FUNCTION energy(m,x,v)
 
     IMPLICIT NONE
-    INTEGER*8 :: n, i, j
+    INTEGER :: n, i, j
     REAL*16 :: kin, pot, energy, d
     REAL*16, INTENT(IN) :: m(:), x(:,:), v(:,:)
 
@@ -730,21 +738,28 @@ CONTAINS
     IMPLICIT NONE
     REAL*16 :: potential
     REAL*16, INTENT(IN) :: r
+    REAL*16 :: rr
 
     !Potential energy without the G*m1*m2 pre-factor
 
+    rr=r+soft
+
     IF(iforce==1) THEN
-       potential=-1./r
+       potential=-1./rr
     ELSE IF(iforce==2) THEN
-       potential=-1./r**2.
+       potential=-1./rr**2
     ELSE IF(iforce==3) THEN
-       potential=r+r**(-1.)
+       potential=rr+rr**(-1)
     ELSE IF(iforce==4) THEN
-       potential=r**2.+r**(-2.)
+       potential=rr**2.+rr**(-2)
     ELSE IF(iforce==5) THEN
-       potential=r**0.5+r**(-0.5)
+       potential=rr**0.5+rr**(-0.5)
     ELSE IF(iforce==6) THEN
-       potential=r**(-3.)-r**(-1.)
+       potential=rr**(-3)-rr
+    !ELSE IF(iforce==7) THEN
+    !   potential=-1./(r+soft)
+    ELSE
+       STOP 'FORCE: Error, iforce not specified correctly'
     END IF
     
   END FUNCTION potential
@@ -754,23 +769,30 @@ CONTAINS
     IMPLICIT NONE
     REAL*16 :: force
     REAL*16, INTENT(IN) :: r
+    REAL*16 :: rr
+
+    rr=r+soft
 
     !Force without the G*m1*m2 pre-factor
     !Force = -Grad V(r) (NB. *MINUS* grad V)
     !Assumes V is a function of r only
 
     IF(iforce==1) THEN
-       force=-1./r**2.
+       force=-1./rr**2
     ELSE IF(iforce==2) THEN
-       force=-2./r**3.
+       force=-2./rr**3
     ELSE IF(iforce==3) THEN
-       force=-1.+r**(-2.)
+       force=-1.+rr**(-2)
     ELSE IF(iforce==4) THEN
-       force=-2.*r+2.*r**(-3.)
+       force=-2.*rr+2*rr**(-3)
     ELSE IF(iforce==5) THEN
-       force=-0.5*r**(-0.5)+0.5*r**(-1.5)
+       force=-0.5*rr**(-0.5)+0.5*rr**(-1.5)
     ELSE IF(iforce==6) THEN
-       force=3.*r**(-4.)-r**(-2.)
+       force=3.*rr**(-4)-rr**(-2)
+    !ELSE IF(iforce==7) THEN
+    !   potential=-1./(rr+soft)**2
+    ELSE
+       STOP 'FORCE: Error, iforce not specified correctly'
     END IF
     
   END FUNCTION force
@@ -779,7 +801,7 @@ CONTAINS
 
     IMPLICIT NONE
     REAL*16 :: dist_2D, x1(2), x2(2)
-    INTEGER*8 :: i
+    INTEGER :: i
 
     !Compute the distance between two 2D vectors
 
@@ -797,7 +819,7 @@ CONTAINS
 
     IMPLICIT NONE
     REAL*16 :: dist_3D, x1(3), x2(3)
-    INTEGER*8 :: i
+    INTEGER :: i
 
     !Compute the distance between two 3D vectors
 
@@ -815,7 +837,7 @@ CONTAINS
 
     IMPLICIT NONE
     CHARACTER(len=256) :: file_name
-    INTEGER*8 ::n, file_length
+    INTEGER ::n, file_length
 
     !Figures out the length of a file
 
