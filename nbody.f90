@@ -1,8 +1,11 @@
 PROGRAM nbody
 
+  USE string_operations
+  USE file_info
+  
   IMPLICIT NONE
   REAL*16, ALLOCATABLE :: xi(:,:), vi(:,:), m(:), x(:,:), v(:,:), xnew(:,:), vnew(:,:), xres(:,:,:), tres(:), vres(:,:,:)
-  INTEGER :: i, j, k, np, n, it!, xint(2), yint(2)
+  INTEGER :: i, j, k, np, it!, xint(2), yint(2)
   INTEGER :: icm, idim  
   REAL*16 :: tf, dt, e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
   REAL*16 :: L(3), Lnew(3), Lmod, Lmodnew, Lratio, dL, acc
@@ -14,6 +17,7 @@ PROGRAM nbody
   REAL*16, PARAMETER :: pi=3.141592654d0 !pi
   REAL*16, PARAMETER :: ti=0.d0 !Initial time (no reason to not be zero)
   REAL*16, PARAMETER :: soft=0.0d0 !Gravitational softening [AU; need to set iforce=7]
+  INTEGER, PARAMETER :: n=1001 !Number of time-steps to output (linear in t; need to have 101, 1001 etc.)
 
   CALL get_command_argument(1,infile)
   IF(infile=='') STOP 'You need to specify an input file'
@@ -41,9 +45,6 @@ PROGRAM nbody
 
   INQUIRE(file=infile,exist=mr_logic)
   IF(mr_logic .EQV. .FALSE.) STOP 'Input file does not exist'
-
-  !Number of time-steps to output (linear in t)
-  n=1001 !Needs to have the '1' at the end to make the per-cent calculation work
   
   WRITE(*,*)
   WRITE(*,*) 'N-body integration code'
@@ -538,18 +539,6 @@ CONTAINS
 
   END FUNCTION length
 
-!!$  FUNCTION dot_product(x,y)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL*16 :: dot_product
-!!$    REAL*16, INTENT(IN) :: x(3), y(3)
-!!$
-!!$    !Calculates the dot product of two vectors
-!!$
-!!$    dot_product=x(1)*y(1)+x(2)*y(2)+x(3)*y(3)
-!!$
-!!$  END FUNCTION dot_product
-
   FUNCTION cross_product(x,y)
 
     IMPLICIT NONE
@@ -569,10 +558,6 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, np
     REAL*16, ALLOCATABLE :: t(:), x(:,:,:), v(:,:,:), m(:)
-!    CHARACTER(len=1) :: file_num1, part_num1
-!    CHARACTER(len=2) :: file_num2, part_num2
-!    CHARACTER(len=3) :: file_num3, part_num3
-!    CHARACTER(len=4) :: file_num4, part_num4
     CHARACTER(len=256) :: fname, stem, ext, dir
     INTEGER :: i, j
 
@@ -608,33 +593,33 @@ CONTAINS
 
   END SUBROUTINE results
 
-  FUNCTION number_file(fbase,i,fext)
-
-    IMPLICIT NONE
-    CHARACTER(len=256) number_file, fbase, fext
-    CHARACTER(len=4) num4
-    CHARACTER(len=3) num3
-    CHARACTER(len=2) num2
-    CHARACTER(len=1) num1
-    INTEGER :: i
-
-    !A general routine for producing files with a numbered extension
-
-    IF(i<10) THEN
-       WRITE(num1,fmt='(I1)') i
-       number_file=TRIM(fbase)//'_'//TRIM(num1)//TRIM(fext)
-    ELSE IF(i<100) THEN
-       WRITE(num2,fmt='(I2)') i
-       number_file=TRIM(fbase)//'_'//TRIM(num2)//TRIM(fext)
-    ELSE IF(i<1000) THEN
-       WRITE(num3,fmt='(I3)') i
-       number_file=TRIM(fbase)//'_'//TRIM(num3)//TRIM(fext)
-    ELSE IF(i<10000) THEN
-       WRITE(num4,fmt='(I4)') i
-       number_file=TRIM(fbase)//'_'//TRIM(num4)//TRIM(fext)
-    END IF
-
-  END FUNCTION number_file
+!!$  FUNCTION number_file(fbase,i,fext)
+!!$
+!!$    IMPLICIT NONE
+!!$    CHARACTER(len=256) number_file, fbase, fext
+!!$    CHARACTER(len=4) num4
+!!$    CHARACTER(len=3) num3
+!!$    CHARACTER(len=2) num2
+!!$    CHARACTER(len=1) num1
+!!$    INTEGER :: i
+!!$
+!!$    !A general routine for producing files with a numbered extension
+!!$
+!!$    IF(i<10) THEN
+!!$       WRITE(num1,fmt='(I1)') i
+!!$       number_file=TRIM(fbase)//'_'//TRIM(num1)//TRIM(fext)
+!!$    ELSE IF(i<100) THEN
+!!$       WRITE(num2,fmt='(I2)') i
+!!$       number_file=TRIM(fbase)//'_'//TRIM(num2)//TRIM(fext)
+!!$    ELSE IF(i<1000) THEN
+!!$       WRITE(num3,fmt='(I3)') i
+!!$       number_file=TRIM(fbase)//'_'//TRIM(num3)//TRIM(fext)
+!!$    ELSE IF(i<10000) THEN
+!!$       WRITE(num4,fmt='(I4)') i
+!!$       number_file=TRIM(fbase)//'_'//TRIM(num4)//TRIM(fext)
+!!$    END IF
+!!$
+!!$  END FUNCTION number_file
 
   SUBROUTINE read_input(m,x,v,n,file_name)
 
@@ -833,30 +818,30 @@ CONTAINS
 
   END FUNCTION dist_3D
 
-  FUNCTION file_length(file_name)
-
-    IMPLICIT NONE
-    CHARACTER(len=256) :: file_name
-    INTEGER ::n, file_length
-
-    !Figures out the length of a file
-
-    WRITE(*,*) 'File length of: ', TRIM(file_name)
-    OPEN(7,file=file_name)
-    n=0
-    DO
-       n=n+1
-       READ(7,*, end=301)
-    END DO
-
-301 CLOSE(7)
-
-    n=n-1
-    file_length=n
-
-    WRITE(*,*) 'File length is:', file_length
-    WRITE(*,*) ''
-
-  END FUNCTION file_length
+!!$  FUNCTION file_length(file_name)
+!!$
+!!$    IMPLICIT NONE
+!!$    CHARACTER(len=256) :: file_name
+!!$    INTEGER ::n, file_length
+!!$
+!!$    !Figures out the length of a file
+!!$
+!!$    WRITE(*,*) 'File length of: ', TRIM(file_name)
+!!$    OPEN(7,file=file_name)
+!!$    n=0
+!!$    DO
+!!$       n=n+1
+!!$       READ(7,*, end=301)
+!!$    END DO
+!!$
+!!$301 CLOSE(7)
+!!$
+!!$    n=n-1
+!!$    file_length=n
+!!$
+!!$    WRITE(*,*) 'File length is:', file_length
+!!$    WRITE(*,*) ''
+!!$
+!!$  END FUNCTION file_length
 
 END PROGRAM nbody
