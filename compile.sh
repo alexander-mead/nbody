@@ -17,3 +17,6 @@ precision='-fdefault-real-16'
 
 $compiler $mead/constants.f90 $mead/string_operations.f90 $mead/file_info.f90 $mead/vectors.f90 $code.f90 $normal $precision -o $code.e
 #$compiler src/*.f90 $normal $precision -o $code.e #Does not work because order matters
+
+#Clean up
+rm *.mod
