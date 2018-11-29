@@ -7,7 +7,7 @@ PROGRAM nbody
   
   IMPLICIT NONE
   REAL, ALLOCATABLE :: xi(:,:), vi(:,:), m(:), x(:,:), v(:,:), xnew(:,:), vnew(:,:), xres(:,:,:), tres(:), vres(:,:,:)
-  INTEGER :: i, j, k, np, it!, xint(2), yint(2)
+  INTEGER :: i, j, k, np, it
   INTEGER :: icm, idim  
   REAL :: tf, dt, e_init, e_final, xcm(3), vcm(3), l_init(3), l_final(3), e, enew, de, t, dtmax, eratio
   REAL :: L(3), Lnew(3), Lmod, Lmodnew, Lratio, dL, acc
@@ -175,10 +175,12 @@ PROGRAM nbody
      END IF
 
      IF(((iE .EQV. .FALSE.) .OR. (eratio<de)) .AND. ((iL .EQV. .FALSE.) .OR. (Lratio<dL))) THEN
+        
         ! In this case update the positions and move on to the next step
         x=xnew
         v=vnew
         !t=t+dt ! NB. I think errors accrew in the time calculation (big sum) this was so that tf won't be exactly what you specify
+
         ! Although this might not be the case because each timestep is a power of two thing 1/2**N
         t=t+dt
 
@@ -269,20 +271,23 @@ PROGRAM nbody
   WRITE(*,*) vcm(3)
   WRITE(*,*)
 
+  ! Angular momentum in x
   IF(l_init(1) .NE. 0.) THEN
      WRITE(*,*) 'Initial Lx:', l_init(1)
      WRITE(*,*) 'Final Lx:', l_final(1)
      WRITE(*,*) 'Ratio:', l_final(1)/l_init(1)
      WRITE(*,*)
   END IF
-  
+
+  ! Angular momentum in y
   IF(l_init(2) .NE. 0.) THEN
      WRITE(*,*) 'Initial Ly:', l_init(2)
      WRITE(*,*) 'Final Ly:', l_final(2)
      WRITE(*,*) 'Ratio:', l_final(2)/l_init(2)
      WRITE(*,*)
   END IF
-  
+
+  ! Angular momentum in z
   IF(l_init(3) .NE. 0.) THEN
      WRITE(*,*) 'Initial Lz:', l_init(3)
      WRITE(*,*) 'Final Lz:', l_final(3)
@@ -290,6 +295,7 @@ PROGRAM nbody
      WRITE(*,*)
   END IF
 
+  ! Total angular momentum
   IF(e_init .NE. 0.) THEN
      WRITE(*,*) 'Initial energy:', e_init
      WRITE(*,*) 'Final energy:', e_final
@@ -302,17 +308,18 @@ PROGRAM nbody
 
 CONTAINS
 
-   FUNCTION centre_of_mass(n,m,x)
+  FUNCTION centre_of_mass(n,m,x)
 
+    ! Calculate the CM vector from all particles
     IMPLICIT NONE
     REAL, INTENT(IN) :: m(:), x(:,:)
     REAL :: centre_of_mass(3)
     INTEGER :: i, j, n
 
-    ! Calculate the CM vector from all particles
-    
+    ! Set sum variable to zero
     centre_of_mass=0.
 
+    ! Sum over dimensions and numbers of particles
     DO j=1,3
        DO i=1,n
           centre_of_mass(j)=centre_of_mass(j)+m(i)*x(j,i)
@@ -325,39 +332,30 @@ CONTAINS
 
   FUNCTION total_energy(m,x,v)
 
+    ! Calculates the total energy of all particles
     IMPLICIT NONE
     INTEGER :: n, i, j
     REAL :: kin, pot, total_energy, d
     REAL, INTENT(IN) :: m(:), x(:,:), v(:,:)
 
-    ! Calculates the total energy of all particles
-
+    ! Set the sum variables to zero
     kin=0.
     pot=0.
 
     n=SIZE(x,2)
 
-    ! Calculate kinetic energy!
+    ! Calculate kinetic energy
     DO i=1,n
        kin=kin+m(i)*((v(1,i)**2.)+(v(2,i)**2.)+(v(3,i)**2.))/2.
     END DO
 
-!    WRITE(*,*) 'kin:', kin
-
-    !Calculate potential energy
+    ! Calculate potential energy
     DO i=1,n
        DO j=1,i-1
-          !IF(idim==2) THEN
-          !   d=dist_2D(x(:,i),x(:,j))
-          !ELSE IF(idim==3) THEN
-          !   d=dist_3D(x(:,i),x(:,j))
-          !END IF
           d=distance(x(:,i),x(:,j),idim)
           pot=pot+G*m(i)*m(j)*gravitational_potential(d)
        END DO
     END DO
-
-!    WRITE(*,*) 'pot', pot, d
 
     ! Total is sum
     total_energy=kin+pot
@@ -366,13 +364,13 @@ CONTAINS
 
   FUNCTION angular_momentum(m,x,v)
 
+    ! This calculates the total angular momentum (about the origin) of the particles L=sum r x p
     IMPLICIT NONE
     REAL :: angular_momentum(3)
     REAL, INTENT(IN) :: m(:), x(:,:), v(:,:)
     INTEGER :: i, n
 
-    ! This calculates the total angular momentum (about the origin) of the particles L=sum r x p
-
+    ! Set sum variable to zero
     angular_momentum=0.
 
     n=SIZE(x,2)
@@ -383,17 +381,18 @@ CONTAINS
 
   END FUNCTION angular_momentum
 
-    FUNCTION gravitational_potential(r)
+  FUNCTION gravitational_potential(r)
 
+    ! Potential energy without the G*m1*m2 pre-factor
     IMPLICIT NONE
     REAL :: gravitational_potential
     REAL, INTENT(IN) :: r
-    REAL :: rr
+    REAL :: rr    
 
-    ! Potential energy without the G*m1*m2 pre-factor
-
+    ! Softening length
     rr=r+soft
 
+    ! Different central potentials
     IF(iforce==1) THEN
        gravitational_potential=-1./rr
     ELSE IF(iforce==2) THEN
@@ -414,17 +413,16 @@ CONTAINS
 
   FUNCTION gravitational_force(r)
 
+    ! Calculates the central force without the G*m1*m2 pre-factor
     IMPLICIT NONE
     REAL :: gravitational_force
     REAL, INTENT(IN) :: r
     REAL :: rr
 
+    ! Softening length
     rr=r+soft
 
-    ! Force without the G*m1*m2 pre-factor
-    ! Force = -Grad V(r) (NB. *MINUS* grad V)
-    ! Assumes V is a function of r only
-
+    ! Force = -Grad V(r) (NB. *MINUS* grad V); V is a function of r only
     IF(iforce==1) THEN
        gravitational_force=-1./rr**2
     ELSE IF(iforce==2) THEN
@@ -445,14 +443,13 @@ CONTAINS
 
   SUBROUTINE force_matrix(n,x,m,F)
 
+    ! This is the force matrix calculation does the i .NE. j forces and reflects along the diagonal
     IMPLICIT NONE
     REAL, INTENT(IN) :: x(:,:), m(:)
     INTEGER :: n
     REAL, INTENT(OUT) :: F(:,:,:)
     INTEGER :: i, j, k
-    REAL :: d
-
-    ! This is the force matrix calculation does the i .NE. j forces and reflects along the diagonal
+    REAL :: d   
 
     ! The diagonal is never investigated so will remain zero (anti-symmetry, no self force)
     F=0.
@@ -461,15 +458,9 @@ CONTAINS
        DO i=1,j-1
 
           ! Calculate the particle-particle distances depending on the number of dimensions
-          !IF(idim==3) THEN
-          !   !d=dist_3D(x(:,i),x(:,j))
-          !ELSE IF(idim==2) THEN
-          !   !d=dist_2D(x(:,i),x(:,j))
-          !END IF
           d=distance(x(:,i),x(:,j),idim)
 
-          ! Compute all elements of the force matrix, anti-symmetry is enforced
-          ! radial vector comes in at the end
+          ! Compute all elements of the force matrix, anti-symmetry is enforced; radial vector comes in at the end
           DO k=1,idim
              F(k,i,j)=G*m(i)*m(j)*gravitational_force(d)*(x(k,i)-x(k,j))/d
              F(k,j,i)=-F(k,i,j)
@@ -577,8 +568,7 @@ CONTAINS
 
     DEALLOCATE(x,v,F)
 
-    ! Now compute the RK4 result using the standard weighting
-    
+    ! Now compute the RK4 result using the standard weighting   
     ! Only run over the number of dimensions
     DO k=1,idim
        DO i=1,n
@@ -599,6 +589,41 @@ CONTAINS
     DEALLOCATE(kv1,kv2,kv3,kv4)
 
   END SUBROUTINE rk4
+
+  SUBROUTINE read_input(m,x,v,n,file_name)
+
+    ! Reads the input file
+    IMPLICIT NONE
+    REAL, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
+    CHARACTER(len=256), INTENT(IN) :: file_name
+    INTEGER, INTENT(OUT) :: n  
+
+    n=file_length(file_name,verbose=.TRUE.)
+
+    WRITE(*,*) 'Particles in simulation:', n
+
+    ALLOCATE(x(3,n),v(3,n),m(n))
+
+    WRITE(*,*) 'Reading input'
+
+    OPEN(7,file=file_name)
+    DO i=1,n
+       
+       READ(7,*) m(i), x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i)
+
+       ! If only using 2 dimensions then ensure z compoents are set to zero
+       IF(idim==2) THEN
+          x(3,i)=0.
+          v(3,i)=0.
+       END IF
+       
+    END DO
+    CLOSE(7)
+
+    WRITE(*,*) 'Finished reading input'
+    WRITE(*,*)
+
+  END SUBROUTINE read_input
 
   SUBROUTINE write_results(np,n,t,x,v,m,dir)
 
@@ -638,40 +663,5 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE write_results
-
-  SUBROUTINE read_input(m,x,v,n,file_name)
-
-    ! Reads the input file
-    IMPLICIT NONE
-    REAL, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
-    CHARACTER(len=256), INTENT(IN) :: file_name
-    INTEGER, INTENT(OUT) :: n  
-
-    n=file_length(file_name,verbose=.TRUE.)
-
-    WRITE(*,*) 'Particles in simulation:', n
-
-    ALLOCATE(x(3,n),v(3,n),m(n))
-
-    WRITE(*,*) 'Reading input'
-
-    OPEN(7,file=file_name)
-    DO i=1,n
-       
-       READ(7,*) m(i), x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i)
-
-       ! If only using 2 dimensions then ensure z compoents are set to zero
-       IF(idim==2) THEN
-          x(3,i)=0.
-          v(3,i)=0.
-       END IF
-       
-    END DO
-    CLOSE(7)
-
-    WRITE(*,*) 'Finished reading input'
-    WRITE(*,*)
-
-  END SUBROUTINE read_input
 
 END PROGRAM nbody
