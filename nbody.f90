@@ -14,12 +14,11 @@ PROGRAM nbody
   CHARACTER(len=256) :: infile, time, boost, accuracy, directory, dimens
   LOGICAL :: mr_logic, iE, iL
   
-  INTEGER, PARAMETER :: iforce=1 !Change the potential function
-  REAL, PARAMETER :: G=1. !Gravitational constant
-  !REAL, PARAMETER :: pi=3.141592654d0 !pi
-  REAL, PARAMETER :: ti=0. !Initial time (no reason to not be zero)
-  REAL, PARAMETER :: soft=0. !Gravitational softening [AU; need to set iforce=7]
-  INTEGER, PARAMETER :: n=1001 !Number of time-steps to output (linear in t; need to have 101, 1001 etc.)
+  INTEGER, PARAMETER :: iforce=1 ! Change the potential function
+  REAL, PARAMETER :: G=1.        ! Gravitational constant
+  REAL, PARAMETER :: ti=0.       ! Initial time (no reason to not be zero)
+  REAL, PARAMETER :: soft=0.     ! Gravitational softening [AU; need to set iforce=7]
+  INTEGER, PARAMETER :: n=1001   ! Number of time-steps to output (linear in t; need to have 101, 1001 etc.)
 
   CALL get_command_argument(1,infile)
   IF(infile=='') STOP 'You need to specify an input file'
@@ -53,12 +52,12 @@ PROGRAM nbody
   WRITE(*,*) '======================='
   WRITE(*,*)
 
-  !Reads in the initial mass, position and velocity of each particle to be simulated
+  ! Read in the initial mass, position and velocity of each particle to be simulated
   CALL read_input(m,xi,vi,np,infile)
 
-  !I included this because I thought that 2D simulations would be much quicker than 3D
-  !This seems not to be the case though, and the speed-up is very, very marginal
-  !I'm not quite sure why though...
+  ! I included this because I thought that 2D simulations would be much quicker than 3D
+  ! This seems not to be the case though, and the speed-up is very, very marginal
+  ! I'm not quite sure why though...
   WRITE(*,*) 'Number of dimensions:', idim
   WRITE(*,*)
 
@@ -85,19 +84,19 @@ PROGRAM nbody
   WRITE(*,*) 'Gravitational softening [AU]:', soft
   WRITE(*,*)
 
-  !Convert to internal time units (Done so that G=1 in the code, rather than 4*pi^2)
+  ! Convert to internal time units (Done so that G=1 in the code, rather than 4*pi^2)
   tf=tf*2.*pi
 
   ALLOCATE(x(3,np),xnew(3,np),v(3,np),vnew(3,np),xres(3,np,n),vres(3,np,n),tres(n))
 
-  !Set variables to zero
+  ! Set variables to zero
   x=0.
   xnew=0.
   v=0.
   vnew=0.
   t=ti
 
-  !Write the ICs to be the first line in the results file
+  ! Write the ICs to be the first line in the results file
   DO k=1,3
      DO i=1,np
         x(k,i)=xi(k,i)
@@ -107,7 +106,7 @@ PROGRAM nbody
      END DO
   END DO
 
-  !Assume checking AM and energy conservation
+  ! Assume checking AM and energy conservation
   iL=.TRUE.
   iE=.TRUE.
 
@@ -119,34 +118,30 @@ PROGRAM nbody
   WRITE(*,*) 'Initial angular momentum:', Lmod
   WRITE(*,*)
   
-  !Don't do AM conservation if |L|=0. or energy conservation if this is zero
+  ! Don't do AM conservation if |L|=0. or energy conservation if this is zero
   IF(ABS(e)<=1d-12) iE=.FALSE.
   IF(Lmod<=1d-12) iL=.FALSE.
 
-  !Set the physical time-step length based on the desired number (n) outputs
-  !Actually there will be n-1 further outputs because n=1 is taken up with ICs
+  ! Set the physical time-step length based on the desired number (n) outputs
+  ! Actually there will be n-1 further outputs because n=1 is taken up with ICs
   dt=(tf-ti)/float(n-1)
 
-  !Maximum timestep is then set
+  ! Maximum timestep is then set
   dtmax=dt
 
-  !Time stepping integer; dt=dtmax/(2**it)
+  ! Time stepping integer; dt=dtmax/(2**it)
   it=0
-!  xint(1)=0
-!  xint(2)=1
-!  yint(1)=1
-!  yint(2)=1
 
   WRITE(*,*) 'Starting intergation'
   IF(iE) WRITE(*,*) 'Integrating while checking energy conservation'
   IF(iL) WRITE(*,*) 'Integrating while checking angular momentum conservation'
-  WRITE(*,*) 'Accuracy parameter:', acc !User set and is the degree to which AM and energy conservation occur
+  WRITE(*,*) 'Accuracy parameter:', acc ! User set and is the degree to which AM and energy conservation occur
   WRITE(*,*)
 
-  i=1 !Must set i=1 here to make calculation work properly
+  i=1 ! Must set i=1 here to make calculation work properly
   DO
 
-     !Calculate energy and AM at the beginning of the step
+     ! Calculate energy and AM at the beginning of the step
      IF(iE) THEN
         e=total_energy(m,x,v)
      END IF
@@ -155,10 +150,10 @@ PROGRAM nbody
         Lmod=modulus(L,3)
      END IF
 
-     !This integrates the system from t to t+dt
+     ! This integrates the system from t to t+dt
      CALL rk4(np,x(:,:),xnew(:,:),v(:,:),vnew(:,:),dt)
 
-     !Calculate energy and AM at the end of the step
+     ! Calculate energy and AM at the end of the step
      IF(iE) THEN
         enew=total_energy(m,xnew,vnew)
      END IF
@@ -167,42 +162,42 @@ PROGRAM nbody
         Lmodnew=modulus(Lnew,3)
      END IF
 
-     !Calculate ratio of before and after energy
+     ! Calculate ratio of before and after energy
      IF(iE) THEN
         eratio=ABS(-1+enew/e)
         de=acc*dt/tf
      END IF
 
-     !Calculate ratio of before and after angular momentum
+     ! Calculate ratio of before and after angular momentum
      IF(iL) THEN
         Lratio=ABS(-1+Lmodnew/Lmod)
         dL=acc*dt/tf
      END IF
 
      IF(((iE .EQV. .FALSE.) .OR. (eratio<de)) .AND. ((iL .EQV. .FALSE.) .OR. (Lratio<dL))) THEN
-        !In this case update the positions and move on to the next step
+        ! In this case update the positions and move on to the next step
         x=xnew
         v=vnew
-        !t=t+dt !NB. I think errors accrew in the time calculation (big sum) this was so that tf won't be exactly what you specify
-        !Although this might not be the case because each timestep is a power of two thing 1/2**N
+        !t=t+dt ! NB. I think errors accrew in the time calculation (big sum) this was so that tf won't be exactly what you specify
+        ! Although this might not be the case because each timestep is a power of two thing 1/2**N
         t=t+dt
 
-        !This is only approximately accurate for output time, but is easiest
-        !As set there is no guarenee that the output time will be an integer multiple of dtmax because this exact value
-        !can be missed. I can't think of an easy way to fix this at the moment.
-        !Still, the *value* of time should be accurate
+        ! This is only approximately accurate for output time, but is easiest
+        ! As set there is no guarenee that the output time will be an integer multiple of dtmax because this exact value
+        ! can be missed. I can't think of an easy way to fix this at the moment.
+        ! Still, the *value* of time should be accurate
         IF(t>=dtmax*float(i)) THEN
 
-           !Using these integer routines should be 100% accurate for output time
-           !but seems to be super slow, must be all the integer operations
-           !Actually this will still miss doing integer multiples of 'dt_{max}' (e.g. 5/8+1/2)
+           ! Using these integer routines should be 100% accurate for output time
+           ! but seems to be super slow, must be all the integer operations
+           ! Actually this will still miss doing integer multiples of 'dt_{max}' (e.g. 5/8+1/2)
            !yint(2)=it
            !xint=add2powfrac(xint,yint)
            !IF(xint(2)==0) THEN
            !xint(1)=0
            !xint(2)=1
            
-           !Tells the user how long has elapsed in terms of time
+           ! Tells the user how long has elapsed in terms of time
            IF(i==CEILING(0.1*DBLE(n))) WRITE(*,*) '10% Complete'
            IF(i==CEILING(0.2*DBLE(n))) WRITE(*,*) '20% Complete'
            IF(i==CEILING(0.3*DBLE(n))) WRITE(*,*) '30% Complete'
@@ -212,7 +207,7 @@ PROGRAM nbody
            IF(i==CEILING(0.7*DBLE(n))) WRITE(*,*) '70% Complete'
            IF(i==CEILING(0.8*DBLE(n))) WRITE(*,*) '80% Complete'
            IF(i==CEILING(0.9*DBLE(n))) WRITE(*,*) '90% Complete'
-           i=i+1 !i will be 1+1=2 on first pass so this does not overwrite IC
+           i=i+1 ! i will be 1+1=2 on first pass so this does not overwrite IC
            xres(:,:,i)=x(:,:)
            vres(:,:,i)=v(:,:)
            tres(i)=t
@@ -221,22 +216,21 @@ PROGRAM nbody
               EXIT
            END IF
         END IF
-        !        IF(dt<dtmax/1.1d0) THEN
         IF(it .NE. 0) THEN
-           !Try an increase the time-step as long as it below the maximum value
-        !          dt=dt*2
+           ! Try an increase the time-step as long as it below the maximum value
+           !dt=dt*2
            it=it-1
            dt=dtmax/float(2**it)
         END IF
         
      ELSE
 
-        !Otherwise decrease the time-step and do the calculation again
+        ! Otherwise decrease the time-step and do the calculation again
         it=it+1
         dt=dtmax/float(2**it)
 
-        !This is an attempt to make the code exit if the timestep becomes too small
-        !I've not really checked to see what an 'optimum' value is here
+        ! This is an attempt to make the code exit if the timestep becomes too small
+        ! I've not really checked to see what an 'optimum' value is here
         IF(it==30) THEN
            WRITE(*,*) 'Error - collision detected exiting'
            WRITE(*,*) 'Collision at time:', t/(2.*pi)
@@ -253,9 +247,9 @@ PROGRAM nbody
 
   END DO
   WRITE(*,*)
-  !Integration is now finished
+  ! Integration is now finished
   
-  !Calculate initial and final energies, AM and CM and VCM
+  ! Calculate initial and final energies, AM and CM and VCM
   e_init=total_energy(m,xi(:,:),vi(:,:))
   e_final=total_energy(m,x(:,:),v(:,:))
   l_init=angular_momentum(m,xi(:,:),vi(:,:))
@@ -303,7 +297,7 @@ PROGRAM nbody
      WRITE(*,*)
   END IF
 
-  !This the writes out the results, it does this only when the calculation is complete
+  ! This the writes out the results, it does this only when the calculation is complete
   CALL write_results(np,n,tres,xres,vres,m,directory)
 
 CONTAINS
@@ -315,7 +309,7 @@ CONTAINS
     REAL :: centre_of_mass(3)
     INTEGER :: i, j, n
 
-    !Calculate the CM vector from all particles
+    ! Calculate the CM vector from all particles
     
     centre_of_mass=0.
 
@@ -336,14 +330,14 @@ CONTAINS
     REAL :: kin, pot, total_energy, d
     REAL, INTENT(IN) :: m(:), x(:,:), v(:,:)
 
-    !Calculates the total energy of all particles
+    ! Calculates the total energy of all particles
 
     kin=0.
     pot=0.
 
     n=SIZE(x,2)
 
-    !Calculate kinetic energy!
+    ! Calculate kinetic energy!
     DO i=1,n
        kin=kin+m(i)*((v(1,i)**2.)+(v(2,i)**2.)+(v(3,i)**2.))/2.
     END DO
@@ -365,7 +359,7 @@ CONTAINS
 
 !    WRITE(*,*) 'pot', pot, d
 
-    !Total is sum
+    ! Total is sum
     total_energy=kin+pot
 
   END FUNCTION total_energy
@@ -377,7 +371,7 @@ CONTAINS
     REAL, INTENT(IN) :: m(:), x(:,:), v(:,:)
     INTEGER :: i, n
 
-    !This calculates the total angular momentum (about the origin) of the particles L=sum r x p
+    ! This calculates the total angular momentum (about the origin) of the particles L=sum r x p
 
     angular_momentum=0.
 
@@ -396,7 +390,7 @@ CONTAINS
     REAL, INTENT(IN) :: r
     REAL :: rr
 
-    !Potential energy without the G*m1*m2 pre-factor
+    ! Potential energy without the G*m1*m2 pre-factor
 
     rr=r+soft
 
@@ -427,9 +421,9 @@ CONTAINS
 
     rr=r+soft
 
-    !Force without the G*m1*m2 pre-factor
-    !Force = -Grad V(r) (NB. *MINUS* grad V)
-    !Assumes V is a function of r only
+    ! Force without the G*m1*m2 pre-factor
+    ! Force = -Grad V(r) (NB. *MINUS* grad V)
+    ! Assumes V is a function of r only
 
     IF(iforce==1) THEN
        gravitational_force=-1./rr**2
@@ -458,15 +452,15 @@ CONTAINS
     INTEGER :: i, j, k
     REAL :: d
 
-    !This is the force matrix calculation does the i .NE. j forces and reflects along the diagonal
+    ! This is the force matrix calculation does the i .NE. j forces and reflects along the diagonal
 
-    !The diagonal is never investigated so will remain zero (anti-symmetry, no self force)
+    ! The diagonal is never investigated so will remain zero (anti-symmetry, no self force)
     F=0.
 
     DO j=1,n
        DO i=1,j-1
 
-          !Calculate the particle-particle distances depending on the number of dimensions
+          ! Calculate the particle-particle distances depending on the number of dimensions
           !IF(idim==3) THEN
           !   !d=dist_3D(x(:,i),x(:,j))
           !ELSE IF(idim==2) THEN
@@ -474,8 +468,8 @@ CONTAINS
           !END IF
           d=distance(x(:,i),x(:,j),idim)
 
-          !Compute all elements of the force matrix, anti-symmetry is enforced
-          !radial vector comes in at the end
+          ! Compute all elements of the force matrix, anti-symmetry is enforced
+          ! radial vector comes in at the end
           DO k=1,idim
              F(k,i,j)=G*m(i)*m(j)*gravitational_force(d)*(x(k,i)-x(k,j))/d
              F(k,j,i)=-F(k,i,j)
@@ -498,15 +492,15 @@ CONTAINS
     REAL :: accl
     INTEGER :: i, j, k
 
-    !This is a generic routine to carry out the RK4 algorithm between points t and t+dt'
-    !for n bodies experiencing forces between each other
+    ! This is a generic routine to carry out the RK4 algorithm between points t and t+dt'
+    ! for n bodies experiencing forces between each other
 
-    !Allocate arrays
+    ! Allocate arrays
     ALLOCATE(kx1(idim,n),kx2(idim,n),kx3(idim,n),kx4(idim,n))
     ALLOCATE(kv1(idim,n),kv2(idim,n),kv3(idim,n),kv4(idim,n))
     ALLOCATE(x(idim,n),v(idim,n),F(idim,n,n))
 
-    !This means that x, v in this subroutine can be either 2 or 3 dimensions
+    ! This means that x, v in this subroutine can be either 2 or 3 dimensions
     DO k=1,idim
        DO i=1,n
           x(k,i)=xin(k,i)
@@ -523,9 +517,8 @@ CONTAINS
     kx3=0.
     kx4=0.
 
-    !Step 1
-    !Calculates the force matrix
-    !CALL force_matrix(n,x,disp)
+    ! Step 1
+    ! Calculates the force matrix
     CALL force_matrix(n,x,m,F)
     DO k=1,idim
        DO i=1,n
@@ -540,13 +533,12 @@ CONTAINS
        END DO
     END DO
 
-    !Step 2
+    ! Step 2
     CALL force_matrix(n,x+kx1/2.,m,F)
     DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                !accl=G*m(j)*disp(k,i,j)
                 accl=F(k,i,j)/m(i)
                 kv2(k,i)=kv2(k,i)+accl*dt
              END IF
@@ -555,13 +547,12 @@ CONTAINS
        END DO
     END DO
 
-    !Step 3
+    ! Step 3
     CALL force_matrix(n,x+kx2/2.,m,F)
     DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                !accl=G*m(j)*disp(k,i,j)
                 accl=F(k,i,j)/m(i)
                 kv3(k,i)=kv3(k,i)+accl*dt
              END IF
@@ -570,13 +561,12 @@ CONTAINS
        END DO
     END DO
 
-    !Step 4
+    ! Step 4
     CALL force_matrix(n,x+kx3,m,F)
     DO k=1,idim
        DO i=1,n
           DO j=1,n
              IF(i .NE. j) THEN
-                !accl=G*m(j)*disp(k,i,j)
                 accl=F(k,i,j)/m(i)
                 kv4(k,i)=kv4(k,i)+accl*dt
              END IF
@@ -587,9 +577,9 @@ CONTAINS
 
     DEALLOCATE(x,v,F)
 
-    !Now compute the RK4 result using the standard weighting
+    ! Now compute the RK4 result using the standard weighting
     
-    !Only run over the number of dimensions
+    ! Only run over the number of dimensions
     DO k=1,idim
        DO i=1,n
           xout(k,i)=xin(k,i)+(kx1(k,i)+(2.*kx2(k,i))+(2.*kx3(k,i))+kx4(k,i))/6.
@@ -597,7 +587,7 @@ CONTAINS
        END DO
     END DO
 
-    !Need to set some values for the z component in 2 dimensional case. These should be 0 from before anyway
+    ! Need to set some values for the z component in 2 dimensional case. These should be 0 from before anyway
     IF(idim==2) THEN
        DO i=1,n
           xout(3,i)=xin(3,i)
@@ -612,21 +602,20 @@ CONTAINS
 
   SUBROUTINE write_results(np,n,t,x,v,m,dir)
 
+    ! Writes out the results
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n, np
     REAL, ALLOCATABLE :: t(:), x(:,:,:), v(:,:,:), m(:)
     CHARACTER(len=256) :: fname, stem, ext, dir
     INTEGER :: i, j
 
-    !Writes out the results
-
-    !Convert from internal to external time units
+    ! Convert from internal to external time units
     t=t/(2.*pi)
   
     stem=TRIM(dir)//'/particle_'
     ext='.dat'
 
-    !Writes out the n positions and velocities
+    ! Writes out the n positions and velocities
     WRITE(*,*) 'Writing output:'
     DO j=1,np
        fname=number_file(stem,j,ext)
@@ -638,7 +627,7 @@ CONTAINS
        CLOSE(7)
     END DO
 
-    !Writes out the final positions and velocities in the format of an input file in case the calculation needs to be resumed
+    ! Writes out the final positions and velocities in the format of an input file in case the calculation needs to be resumed
     fname=TRIM(dir)//'/end.dat'
     WRITE(*,*) TRIM(fname)
     OPEN(7,file=fname)
@@ -652,14 +641,13 @@ CONTAINS
 
   SUBROUTINE read_input(m,x,v,n,file_name)
 
+    ! Reads the input file
     IMPLICIT NONE
     REAL, ALLOCATABLE, INTENT(OUT) :: m(:), x(:,:), v(:,:)
     CHARACTER(len=256), INTENT(IN) :: file_name
-    INTEGER, INTENT(OUT) :: n
+    INTEGER, INTENT(OUT) :: n  
 
-    !Reads the input file
-
-    n=file_length(file_name)
+    n=file_length(file_name,verbose=.TRUE.)
 
     WRITE(*,*) 'Particles in simulation:', n
 
@@ -672,7 +660,7 @@ CONTAINS
        
        READ(7,*) m(i), x(1,i), x(2,i), x(3,i), v(1,i), v(2,i), v(3,i)
 
-       !If only using 2 dimensions then ensure z compoents are set to zero
+       ! If only using 2 dimensions then ensure z compoents are set to zero
        IF(idim==2) THEN
           x(3,i)=0.
           v(3,i)=0.
@@ -685,163 +673,5 @@ CONTAINS
     WRITE(*,*)
 
   END SUBROUTINE read_input
-
-!!$  FUNCTION dist_2D(x1,x2)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL :: dist_2D, x1(2), x2(2)
-!!$    INTEGER :: i
-!!$
-!!$    !Compute the distance between two 2D vectors
-!!$
-!!$    dist_2D=0.
-!!$
-!!$    DO i=1,2
-!!$       dist_2D=dist_2D+((x1(i)-x2(i))**2)
-!!$    END DO
-!!$
-!!$    dist_2D=sqrt(dist_2D)
-!!$
-!!$  END FUNCTION dist_2D
-!!$  
-!!$  FUNCTION dist_3D(x1,x2)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL :: dist_3D, x1(3), x2(3)
-!!$    INTEGER :: i
-!!$
-!!$    !Compute the distance between two 3D vectors
-!!$
-!!$    dist_3D=0.
-!!$
-!!$    DO i=1,3
-!!$       dist_3D=dist_3D+((x1(i)-x2(i))**2)
-!!$    END DO
-!!$
-!!$    dist_3D=sqrt(dist_3D)
-!!$
-!!$  END FUNCTION dist_3D
-
-!!$  FUNCTION file_length(file_name)
-!!$
-!!$    IMPLICIT NONE
-!!$    CHARACTER(len=256) :: file_name
-!!$    INTEGER ::n, file_length
-!!$
-!!$    !Figures out the length of a file
-!!$
-!!$    WRITE(*,*) 'File length of: ', TRIM(file_name)
-!!$    OPEN(7,file=file_name)
-!!$    n=0
-!!$    DO
-!!$       n=n+1
-!!$       READ(7,*, end=301)
-!!$    END DO
-!!$
-!!$301 CLOSE(7)
-!!$
-!!$    n=n-1
-!!$    file_length=n
-!!$
-!!$    WRITE(*,*) 'File length is:', file_length
-!!$    WRITE(*,*) ''
-!!$
-!!$  END FUNCTION file_length
-
-!!$  FUNCTION number_file(fbase,i,fext)
-!!$
-!!$    IMPLICIT NONE
-!!$    CHARACTER(len=256) number_file, fbase, fext
-!!$    CHARACTER(len=4) num4
-!!$    CHARACTER(len=3) num3
-!!$    CHARACTER(len=2) num2
-!!$    CHARACTER(len=1) num1
-!!$    INTEGER :: i
-!!$
-!!$    !A general routine for producing files with a numbered extension
-!!$
-!!$    IF(i<10) THEN
-!!$       WRITE(num1,fmt='(I1)') i
-!!$       number_file=TRIM(fbase)//'_'//TRIM(num1)//TRIM(fext)
-!!$    ELSE IF(i<100) THEN
-!!$       WRITE(num2,fmt='(I2)') i
-!!$       number_file=TRIM(fbase)//'_'//TRIM(num2)//TRIM(fext)
-!!$    ELSE IF(i<1000) THEN
-!!$       WRITE(num3,fmt='(I3)') i
-!!$       number_file=TRIM(fbase)//'_'//TRIM(num3)//TRIM(fext)
-!!$    ELSE IF(i<10000) THEN
-!!$       WRITE(num4,fmt='(I4)') i
-!!$       number_file=TRIM(fbase)//'_'//TRIM(num4)//TRIM(fext)
-!!$    END IF
-!!$
-!!$  END FUNCTION number_file
-
-!!$  PURE FUNCTION add2powfrac(x,y)
-!!$
-!!$    IMPLICIT NONE
-!!$    INTEGER*8 :: add2powfrac(2)
-!!$    INTEGER*8, INTENT(IN) :: x(2), y(2)
-!!$    INTEGER*8 :: a, b, n, m, c, q
-!!$
-!!$    !Adds two fractions together as long as the denominators
-!!$    !Are 2^n with n integer
-!!$    !e.g fraction x is x=x(1)/(2**x(2)) !TAKE CARE!
-!!$
-!!$    a=x(1)
-!!$    n=x(2)
-!!$    
-!!$    b=y(1)
-!!$    m=y(2)
-!!$    
-!!$    IF(n==m) THEN
-!!$       q=m
-!!$       c=a+b
-!!$    ELSE IF(n<m) THEN
-!!$       q=m
-!!$       c=a*2**(m-n)+b
-!!$    ELSE IF(n>m) THEN
-!!$       q=n
-!!$       c=a+b*(2**(n-m))
-!!$    END IF
-!!$
-!!$    DO
-!!$       IF(mod(c,2)==0) THEN
-!!$          c=c/2
-!!$          q=q-1
-!!$       ELSE
-!!$          EXIT
-!!$       END IF
-!!$    END DO
-!!$
-!!$    add2powfrac(1)=c
-!!$    add2powfrac(2)=q
-!!$    
-!!$  END FUNCTION
-
-!!$  FUNCTION length(x)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL :: length
-!!$    REAL, INTENT(IN) :: x(3)
-!!$
-!!$    !Calculates the length of a vector
-!!$
-!!$    length=sqrt(x(1)**2.+x(2)**2.+x(3)**2.)
-!!$
-!!$  END FUNCTION length
-
-!!$  FUNCTION cross_product(x,y)
-!!$
-!!$    IMPLICIT NONE
-!!$    REAL :: cross_product(3)
-!!$    REAL, INTENT(IN) :: x(3), y(3)
-!!$
-!!$    !Calculates the cross product of two vectors
-!!$
-!!$    cross_product(1)=x(2)*y(3)-x(3)*y(2)
-!!$    cross_product(2)=x(3)*y(1)-x(1)*y(3)
-!!$    cross_product(3)=x(1)*y(2)-x(2)*y(1)
-!!$
-!!$  END FUNCTION cross_product
 
 END PROGRAM nbody
