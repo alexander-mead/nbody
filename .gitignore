@@ -5,7 +5,6 @@ OLD
 binary
 data
 exchange
-input
 kepler_binary
 movies
 orbit
@@ -15,5 +14,5 @@ winter
 *~
 *.gif
 *.e
-*.dat
+.dat
 create
