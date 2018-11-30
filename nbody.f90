@@ -14,11 +14,12 @@ PROGRAM nbody
   CHARACTER(len=256) :: infile, time, boost, accuracy, directory, dimens
   LOGICAL :: mr_logic, iE, iL
   
-  INTEGER, PARAMETER :: iforce=1 ! Change the potential function
-  REAL, PARAMETER :: G=1.        ! Gravitational constant
-  REAL, PARAMETER :: ti=0.       ! Initial time (no reason to not be zero)
-  REAL, PARAMETER :: soft=0.     ! Gravitational softening [AU; need to set iforce=7]
-  INTEGER, PARAMETER :: n=1001   ! Number of time-steps to output (linear in t; need to have 101, 1001 etc.)
+  INTEGER, PARAMETER :: iforce=1    ! Change the potential function
+  REAL, PARAMETER :: G=1.           ! Gravitational constant
+  REAL, PARAMETER :: ti=0.          ! Initial time (no reason to not be zero)
+  REAL, PARAMETER :: soft=0.        ! Gravitational softening [AU; need to set iforce=7]
+  INTEGER, PARAMETER :: n=1001      ! Number of time-steps to output (linear in t; need to have 101, 1001 etc.)
+  REAL, PARAMETER :: min_cons=1e-12 ! If the conserved quanities are below this number then their conservation is not required
 
   CALL get_command_argument(1,infile)
   IF(infile=='') STOP 'You need to specify an input file'
@@ -120,8 +121,8 @@ PROGRAM nbody
   WRITE(*,*)
   
   ! Don't do AM conservation if |L|=0. or energy conservation if this is zero
-  IF(ABS(e)<=1d-12) iE=.FALSE.
-  IF(Lmod<=1d-12) iL=.FALSE.
+  IF(ABS(e)<=min_cons) iE=.FALSE.
+  IF(Lmod<=min_cons)   iL=.FALSE.
 
   ! Set the physical time-step length based on the desired number (n) outputs
   ! Actually there will be n-1 further outputs because n=1 is taken up with ICs
