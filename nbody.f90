@@ -75,11 +75,12 @@ PROGRAM nbody
      WRITE(*,*)
   END IF
 
+  ! Write useful information to the screen
   WRITE(*,*) 'Mass units [Msun]'
   WRITE(*,*) 'Length units [AU]'
-  WRITE(*,*) 'Velocity in [2*pi*AU/year]:'
-  WRITE(*,*) 'Start time of [years]:', tf-ti
-  WRITE(*,*) 'End time of [years]:', tf-ti
+  WRITE(*,*) 'Velocity units [2*pi*AU/year]'
+  Write(*,*) 'Start time of [years]:', ti
+  WRITE(*,*) 'End time of [years]:', tf
   WRITE(*,*) 'Duration of simulation [years]:', tf-ti
   WRITE(*,*) 'Gravitational softening [AU]:', soft
   WRITE(*,*)
