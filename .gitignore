@@ -16,3 +16,4 @@ winter
 *.e
 .dat
 create
+COMPILE_WITH_COMPILE
