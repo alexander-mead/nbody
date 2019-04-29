@@ -1,19 +1,24 @@
-BACKUP
-Calum
-Lagrange
-OLD
-binary
-data
-exchange
-kepler_binary
-movies
-orbit
-plots
-radial_velocity
-winter
+# My directories
+backup/
+Calum/
+Lagrange/
+old/
+binary/
+data/
+exchange/
+kepler_binary/
+movies/
+orbit/
+plots/
+radial_velocity/
+winter/
+bin/
+build/
+debug_build/
+lib/
+
+# Emacs backups
 *~
-*.gif
-*.e
-.dat
-create
-COMPILE_WITH_COMPILE
+
+# My scripts
+update_library.sh
