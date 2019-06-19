@@ -22,13 +22,15 @@ DEBUG_FLAGS = \
 
 # No cosmosis
 FC = gfortran 
-all: bin lib
+all: bin
 
 # Source-code directory
 SRC_DIR = src
 
 # Build directory
 BUILD_DIR = build
+
+MOD_DIR = /Users/Mead/Physics/library/src
 
 # Debug build directory
 DEBUG_BUILD_DIR = debug_build
@@ -43,6 +45,9 @@ BIN_DIR = bin
 _OBJ = \
 	constants.o \
 	string_operations.o \
+	fix_polynomial.o \
+	array_operations.o \
+	logical_operations.o \
 	file_info.o \
 	vectors.o
 
@@ -54,7 +59,6 @@ DEBUG_OBJ = $(addprefix $(DEBUG_BUILD_DIR)/,$(_OBJ))
 make_dirs = @mkdir -p $(@D)
 
 # Standard rules
-lib: $(LIB_DIR)/lib.a
 bin: $(BIN_DIR)/nbody
 
 # Debugging rules
@@ -62,7 +66,7 @@ debug: FFLAGS += $(DEBUG_FLAGS)
 debug: $(BIN_DIR)/nbody_debug
 
 # Rule to make object files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
+$(BUILD_DIR)/%.o: $(MOD_DIR)/%.f90
 	$(make_dirs)
 	$(FC) -c -o $@ $< -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
 
@@ -73,7 +77,7 @@ $(BIN_DIR)/nbody: $(OBJ) $(SRC_DIR)/nbody.f90
 	$(FC) -o $@ $^ -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
 
 # Rule to make debugging objects
-$(DEBUG_BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
+$(DEBUG_BUILD_DIR)/%.o: $(MOD_DIR)/%.f90
 	$(make_dirs)
 	$(FC) -c -o $@ $< -J$(DEBUG_BUILD_DIR) $(LDFLAGS) $(FFLAGS)
 
@@ -82,17 +86,10 @@ $(BIN_DIR)/nbody_debug: $(DEBUG_OBJ) $(SRC_DIR)/nbody.f90
 	@echo "\nBuilding debugging executable.\n"
 	$(FC) -o $@ $^ -J$(DEBUG_BUILD_DIR) $(LDFLAGS) $(FFLAGS)
 
-# Rule to make static library
-$(LIB_DIR)/lib.a: $(OBJ)
-	@echo "\nBuilding static library.\n"
-	$(make_dirs)
-	$(AR) rc $@ $^
-
 # Clean up
 .PHONY: clean
 clean:
 	rm -f $(BIN_DIR)/nbody
-	rm -f $(LIB_DIR)/lib.a
 	rm -f $(BUILD_DIR)/*.o
 	rm -f $(BUILD_DIR)/*.mod
 	rm -f $(SRC_DIR)/*.mod
