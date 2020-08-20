@@ -113,7 +113,7 @@ PROGRAM nbody
   iE=.TRUE.
 
   L=angular_momentum(m,x,v)
-  Lmod=modulus(L,3)
+  Lmod=modulus(L)
   e=total_energy(m,xi,vi)
 
   WRITE(*,*) 'Initial energy:', e
@@ -149,7 +149,7 @@ PROGRAM nbody
      END IF
      IF(iL) THEN
         L=angular_momentum(m,x,v)
-        Lmod=modulus(L,3)
+        Lmod=modulus(L)
      END IF
 
      ! This integrates the system from t to t+dt
@@ -161,7 +161,7 @@ PROGRAM nbody
      END IF
      IF(iL) THEN
         Lnew=angular_momentum(m,x,v)
-        Lmodnew=modulus(Lnew,3)
+        Lmodnew=modulus(Lnew)
      END IF
 
      ! Calculate ratio of before and after energy
@@ -354,7 +354,7 @@ CONTAINS
     ! Calculate potential energy
     DO i=1,n
        DO j=1,i-1
-          d=distance(x(:,i),x(:,j),idim)
+          d=distance(x(:,i),x(:,j))
           pot=pot+G*m(i)*m(j)*gravitational_potential(d)
        END DO
     END DO
@@ -460,7 +460,7 @@ CONTAINS
        DO i=1,j-1
 
           ! Calculate the particle-particle distances depending on the number of dimensions
-          d=distance(x(:,i),x(:,j),idim)
+          d=distance(x(:,i),x(:,j))
 
           ! Compute all elements of the force matrix, anti-symmetry is enforced; radial vector comes in at the end
           DO k=1,idim

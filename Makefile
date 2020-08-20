@@ -20,7 +20,7 @@ DEBUG_FLAGS = \
 	-fbacktrace \
 	-Og
 
-# No cosmosis
+# Fortran compiler
 FC = gfortran 
 all: bin
 
@@ -43,11 +43,11 @@ BIN_DIR = bin
 
 # Objects
 _OBJ = \
+	precision.o \
 	constants.o \
 	string_operations.o \
-	fix_polynomial.o \
+	basic_operations.o \
 	array_operations.o \
-	logical_operations.o \
 	file_info.o \
 	vectors.o
 
