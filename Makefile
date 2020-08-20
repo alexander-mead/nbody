@@ -2,12 +2,11 @@
 
 # Standard flags
 FFLAGS = \
-	-Warray-bounds \
 	-fmax-errors=4 \
 	-fmax-errors=4 \
 	-ffpe-trap=invalid,zero,overflow \
 	-fimplicit-none \
-	-std=gnu \
+	-std=f2008 \
 	-ffree-line-length-none \
 	-O3 \
 	-fdefault-real-16
