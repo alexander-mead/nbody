@@ -3,30 +3,30 @@ reset
 #print - use x11 on mac, wxt on linux, set print=1 to create a gif
 #if(print==-1) {set term x11 enhanced size 500,500}
 if(!exists('print')){print=0}
-if(print==0){set term aqua enhanced size 700,700}
+if(print==0){set term qt enhanced size 700,700}
 if(print==1){set term gif animate size 500,500 delay 1 optimize; set output 'movie.gif'}
 
 #L - size of plot in AU
 if(!exists('L')){L=1}
-print 'Size of plot (L/AU) set to: ', L
+print 'Size of plot [au]: L:', L
 
 #f - rotation frequency of plot
 if(!exists('f')){f=0}
-print 'Rotation frequency (f/yr^-1) set to: ', f
+print 'Rotation frequency [yr^-1]: f:', f
 
 #dim - number of dimensions, either 2 or 3
 if(!exists('dim')){dim=2}
-print 'Number of dimensions (dim) set to: ', dim
+print 'Number of dimensions: dim: ', dim
 
 #traj - set to 1 to make particle trajectories, 0 otherwise
 if(!exists('traj')){traj=2}
-if(traj==0){print 'Trajectories (traj): off'}
-if(traj==1){print 'Trajectories (traj): full'}
-if(traj==2){print 'Trajectories (traj): limited'}
+if(traj==0){print 'Trajectories: traj: off'}
+if(traj==1){print 'Trajectories: traj: full'}
+if(traj==2){print 'Trajectories: traj: limited'}
 
 #n - number of particles in plot (usually this should be the same as the number simulated)
 if(!exists('n')){n=2}
-print 'Number of particles (n): ', n
+print 'Number of particles [n]: ', n
 
 #Animation
 if(!exists('animate')){animate=1}
