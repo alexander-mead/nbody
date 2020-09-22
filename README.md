@@ -30,8 +30,8 @@ An example run command would therefore be
 ```
 ./bin/nbody input/2_body.dat 10 3 1 1e-6 data
 ```
-using the initial condition file `input/2_body.dat` to run a simulation lasting 10 years, in 3 dimensions, boosting to the CM frame, with an accuracy of better than one part in a million for energy and angular momentum conservation. The output data will be foud in `data/particle_1.dat` and `data/particle_2.dat`.
+using the initial condition file `input/2_body.dat` to run a simulation lasting `10` years, in `3` dimensions, boosting to the CM frame, with an accuracy of better than one part in a million for energy and angular momentum conservation. The output data will be foud in `data/particle_1.dat` and `data/particle_2.dat`.
 
-When the code runs it gives a rough % of completion. The output are files particle_1.dat, particle_2.dat, ... , particle_n.dat which are creatred in the specified output folder. The files give time, x, y, z, vx, vy, vz for every particle in the simulation at 1000 values of 't' that are linearly spaced.
+When the code runs it gives a rough % of completion. The output are files `particle_1.dat`, `particle_2.dat`, ... , `particle_n.dat` which are creatred in the specified output folder. The files give time, x, y, z, vx, vy, vz for every particle in the simulation at 1000 linearly-spaced values of 't'.
 
-These data can then be visualised using the gnuplot script 'plot.p', which can do either a static or animated plot. This script can be run by entering gnuplot `>gnuplot` and then type `gnuplot> load 'plot_animate.p'`. The script requires some things to be specified that are listed in each plotting file; things like number of particles, dimension for the plot.
+These data can then be visualised using the gnuplot script `plot.p`, which can do either a static or animated plot. This script can be run by entering gnuplot `>gnuplot` and then type `gnuplot> load 'plot.p'`. The script requires some things to be specified that are listed in each plotting file; things like number of particles, dimension for the plot.
