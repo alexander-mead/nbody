@@ -2,11 +2,16 @@
 
 This is a direct sum n-body code for integrating systems such as planetary orbits. 'Direct sum' means that it calculates the gravitational force of each particle on every other particle explictly, so the computational time for a run scales as n^2. The code uses a 4th order Runge-Kutta integration scheme and additonally does adaptive time-stepping so that energy and angular momentum are conserved to some user-specified degree of accuracy.
 
-It should compile easily with the contained `Makefile`. It is configured to work for `gfortran`. You may need to create directories `bin/`, `lib/`, `build/` and `debug_build/` within the code directory in order for it to compile.
+```
+git clone --recursive https://github.com/alexander-mead/nbody
+```
+
+The `--recursive` is important in order to simultaneously clone the required library. The code should compile easily with the contained `Makefile`, simply type `>make`, by default it is configured to work for `gfortran` but it should work for other `Fortran` compilers.
 
 The code must then be run specifying: 
 (a) An input file 
 (b) The simulation time length in years 
+(c) Number of dimensions (either 2 or 3, using 2 suppresses all z information)
 (c) A specification of a centre-of-mass (CM) boost or not 
 (d) An accuracy parameter that determines to what level energy and angular-momentum are conserved
 (e) The folder in which to output the results
@@ -20,6 +25,12 @@ The code must then be run specifying:
 (d) The accuracy parameter governs how energy and angular momentum are conserved, which then determines the time-stepping. I usually set this to 1e-6, which means both quantities are conserved to one part in a million. (e.g., 1e-6)
 
 (e) The folder for the output data to be stored in (e.g., data)
+
+An example run command would therefore be
+```
+./bin/nbody input/2_body.dat 10 3 1 1e-6 data
+```
+using the initial condition file `input/2_body.dat` to run a simulation lasting 10 years, in 3 dimensions, boosting to the CM frame, with an accuracy of better than one part in a million for energy and angular momentum conservation. The output data will be foud in `data/particle_1.dat` and `data/particle_2.dat`.
 
 When the code runs it gives a rough % of completion. The output are files particle_1.dat, particle_2.dat, ... , particle_n.dat which are creatred in the specified output folder. The files give time, x, y, z, vx, vy, vz for every particle in the simulation at 1000 values of 't' that are linearly spaced.
 
