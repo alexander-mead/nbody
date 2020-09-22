@@ -29,7 +29,7 @@ SRC_DIR = src
 # Build directory
 BUILD_DIR = build
 
-MOD_DIR = /Users/Mead/Physics/library/src
+MOD_DIR = library/src
 
 # Debug build directory
 DEBUG_BUILD_DIR = debug_build
